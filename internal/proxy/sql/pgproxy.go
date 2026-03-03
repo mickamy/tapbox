@@ -204,6 +204,7 @@ func proxyClientToServer(client, server RawConn, connID uint64, pending chan<- p
 }
 
 func proxyServerToClient(server, client RawConn, pending <-chan pendingQuery, onQuery func(QueryEvent)) error {
+	var rowCount int
 	for {
 		msgType, payload, err := readPGMessage(server)
 		if err != nil {
@@ -213,7 +214,10 @@ func proxyServerToClient(server, client RawConn, pending <-chan pendingQuery, on
 			return fmt.Errorf("writing message to client: %w", writeErr)
 		}
 
-		if msgType == 'Z' { // ReadyForQuery — query cycle complete
+		switch msgType {
+		case 'D': // DataRow
+			rowCount++
+		case 'Z': // ReadyForQuery — query cycle complete
 			select {
 			case pq, ok := <-pending:
 				if ok {
@@ -222,11 +226,13 @@ func proxyServerToClient(server, client RawConn, pending <-chan pendingQuery, on
 						Start:    pq.start,
 						Duration: float64(time.Since(pq.start)) / float64(time.Millisecond),
 						ConnID:   pq.connID,
+						RowCount: rowCount,
 					})
 				}
 			default:
 				// No pending query (e.g. initial ReadyForQuery after auth).
 			}
+			rowCount = 0
 		}
 	}
 }
