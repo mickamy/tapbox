@@ -24,8 +24,15 @@ func NewAPI(store trace.Store, explainDSN string) *API {
 func (a *API) HandleListTraces(w http.ResponseWriter, r *http.Request) {
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	if offset < 0 {
+		offset = 0
+	}
 	if limit <= 0 {
 		limit = 50
+	}
+	const maxLimit = 500
+	if limit > maxLimit {
+		limit = maxLimit
 	}
 
 	traces := a.store.ListTraces(offset, limit)
