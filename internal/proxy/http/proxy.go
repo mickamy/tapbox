@@ -194,8 +194,21 @@ func captureBody(rc io.ReadCloser, maxCapture int) (captured []byte, body io.Rea
 	// Note: n>0 with probeErr (e.g. io.EOF) is valid — the probed byte must
 	// still be included in the forwarded body.
 	remainder := io.MultiReader(bytes.NewReader(probe[:n]), rc)
-	combined := io.NopCloser(io.MultiReader(bytes.NewReader(head), remainder))
+	combined := readCloser{
+		Reader: io.MultiReader(bytes.NewReader(head), remainder),
+		close:  rc.Close,
+	}
 	return head, combined, -1 // -1 = chunked / unknown length
+}
+
+// readCloser wraps an io.Reader with a custom Close function.
+type readCloser struct {
+	io.Reader
+	close func() error
+}
+
+func (r readCloser) Close() error {
+	return r.close()
 }
 
 type responseRecorder struct {
