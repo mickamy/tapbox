@@ -74,6 +74,7 @@ func (p *Proxy) UnknownHandler() grpc.StreamHandler {
 
 		// Relay messages bidirectionally.
 		var reqBytes, respBytes []byte
+		var end time.Time
 		errCh := make(chan error, 2)
 
 		// Client -> Server (incoming from caller -> upstream)
@@ -116,6 +117,11 @@ func (p *Proxy) UnknownHandler() grpc.StreamHandler {
 					errCh <- sendErr
 					return
 				}
+				// Capture end time after the last response is sent to the caller.
+				// This must happen here (not after both goroutines finish) because
+				// the client→server goroutine blocks until the caller closes its
+				// stream, which occurs after the HTTP response cycle completes.
+				end = time.Now()
 			}
 		}()
 
@@ -127,7 +133,10 @@ func (p *Proxy) UnknownHandler() grpc.StreamHandler {
 			}
 		}
 
-		end := time.Now()
+		// Fallback for error cases where no response was ever sent.
+		if end.IsZero() {
+			end = time.Now()
+		}
 
 		return p.submitSpanAt(traceID, parentID, spanID, service, method, reqBytes, respBytes, md, start, end, relayErr)
 	}
