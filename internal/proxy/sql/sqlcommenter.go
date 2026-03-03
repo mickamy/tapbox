@@ -65,8 +65,9 @@ func ParseSQLComment(query string) (CommentResult, CommentStatus) {
 	return CommentResult{}, CommentAbsent
 }
 
-// StripSQLComment removes a trailing sqlcommenter comment from the query.
-// Non-trailing comments (e.g. optimizer hints) are preserved.
+// StripSQLComment removes a trailing SQL block comment (such as a
+// sqlcommenter comment) from the query. Non-trailing comments (e.g.
+// optimizer hints) are preserved.
 func StripSQLComment(query string) string {
 	q := strings.TrimRight(query, " \t\n\r")
 	if !strings.HasSuffix(q, "*/") {
