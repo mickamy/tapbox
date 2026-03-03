@@ -177,6 +177,32 @@ func TestParse_ExplainDSNOverride(t *testing.T) {
 	}
 }
 
+func TestParse_MaxTracesZero(t *testing.T) {
+	t.Parallel()
+	_ = t.Context()
+
+	_, err := config.Parse([]string{
+		"--http-target", "http://localhost:3000",
+		"--max-traces", "0",
+	})
+	if err == nil {
+		t.Fatal("expected error for --max-traces 0")
+	}
+}
+
+func TestParse_MaxTracesNegative(t *testing.T) {
+	t.Parallel()
+	_ = t.Context()
+
+	_, err := config.Parse([]string{
+		"--http-target", "http://localhost:3000",
+		"--max-traces", "-5",
+	})
+	if err == nil {
+		t.Fatal("expected error for negative --max-traces")
+	}
+}
+
 func TestParse_InvalidFlag(t *testing.T) {
 	t.Parallel()
 	_ = t.Context()
