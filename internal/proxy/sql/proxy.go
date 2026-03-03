@@ -21,6 +21,7 @@ type Proxy struct {
 	connCount  atomic.Uint64
 	wg         sync.WaitGroup
 	closed     chan struct{}
+	closeOnce  sync.Once
 }
 
 func NewProxy(target string, collector *trace.Collector, correlator *Correlator) *Proxy {
@@ -60,12 +61,15 @@ func (p *Proxy) Serve() error {
 }
 
 func (p *Proxy) Close() error {
-	close(p.closed)
-	if err := p.listener.Close(); err != nil {
-		return fmt.Errorf("closing sql proxy listener: %w", err)
-	}
-	p.wg.Wait()
-	return nil
+	var closeErr error
+	p.closeOnce.Do(func() {
+		close(p.closed)
+		if err := p.listener.Close(); err != nil {
+			closeErr = fmt.Errorf("closing sql proxy listener: %w", err)
+		}
+		p.wg.Wait()
+	})
+	return closeErr
 }
 
 func (p *Proxy) handleConn(clientConn net.Conn) {
