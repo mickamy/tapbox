@@ -11,6 +11,7 @@ import (
 
 	"github.com/mickamy/tapbox/example/internal/db"
 	"github.com/mickamy/tapbox/example/internal/env"
+	"github.com/mickamy/tapbox/example/internal/tracing"
 )
 
 type searchResult struct {
@@ -59,8 +60,11 @@ func handleSearch(pool *pgxpool.Pool) http.HandlerFunc {
 			return
 		}
 
+		tp := tracing.FromHTTPRequest(r)
+		query := "SELECT id, title, body, created_at FROM notes " +
+			"WHERE title ILIKE '%' || $1 || '%' ORDER BY created_at DESC LIMIT 20"
 		rows, err := pool.Query(r.Context(),
-			"SELECT id, title, body, created_at FROM notes WHERE title ILIKE '%' || $1 || '%' ORDER BY created_at DESC LIMIT 20",
+			tracing.AppendTraceparent(query, tp),
 			q,
 		)
 		if err != nil {

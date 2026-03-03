@@ -105,16 +105,29 @@ func (p *Proxy) handleConn(clientConn net.Conn) {
 		netConnAdapter{conn: serverConn},
 		connID,
 		func(ev QueryEvent) {
-			traceID, parentID := p.correlator.Correlate()
+			var traceID, parentID string
+			queryText := ev.Query
+			sc, status := ParseSQLComment(ev.Query)
+			switch status {
+			case CommentOK:
+				traceID = sc.TraceID
+				parentID = sc.ParentID
+				queryText = StripSQLComment(ev.Query)
+			case CommentInvalid:
+				traceID, parentID = p.correlator.Correlate()
+				queryText = StripSQLComment(ev.Query)
+			case CommentAbsent:
+				traceID, parentID = p.correlator.Correlate()
+			}
 			span := &trace.Span{
 				TraceID:     traceID,
 				SpanID:      trace.NewSpanID(),
 				ParentID:    parentID,
 				Kind:        trace.SpanSQL,
-				Name:        truncateQuery(ev.Query, 80),
+				Name:        truncateQuery(queryText, 80),
 				Start:       ev.Start,
 				Duration:    ev.Duration,
-				SQLQuery:    ev.Query,
+				SQLQuery:    queryText,
 				SQLRowCount: ev.RowCount,
 				SQLError:    ev.Error,
 			}
