@@ -354,7 +354,7 @@
         } else if (s.kind === "sql") {
             // SQL
             html += field("Query", `<pre>${escapeHtml(s.sql_query)}</pre>`);
-            if (s.sql_row_count) html += field("Rows", escapeHtml(s.sql_row_count));
+            if (s.sql_row_count != null) html += field("Rows", escapeHtml(s.sql_row_count));
             if (s.sql_error) html += field("Error", `<span class="status-error">${escapeHtml(s.sql_error)}</span>`);
             if (s.sql_query) {
                 html += `<div class="explain-buttons">`;
