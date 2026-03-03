@@ -1,0 +1,109 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"net/http"
+	"time"
+
+	"connectrpc.com/connect"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	notev1 "github.com/mickamy/tapbox/example/gen/note/v1"
+	"github.com/mickamy/tapbox/example/gen/note/v1/notev1connect"
+	"github.com/mickamy/tapbox/example/internal/db"
+	"github.com/mickamy/tapbox/example/internal/env"
+)
+
+type noteServer struct {
+	pool *pgxpool.Pool
+}
+
+func (s *noteServer) CreateNote(ctx context.Context, req *connect.Request[notev1.CreateNoteRequest]) (*connect.Response[notev1.Note], error) {
+	if req.Msg.Title == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("title is required"))
+	}
+
+	var note notev1.Note
+	var createdAt time.Time
+	err := s.pool.QueryRow(ctx,
+		"INSERT INTO notes (title, body) VALUES ($1, $2) RETURNING id, title, body, created_at",
+		req.Msg.Title, req.Msg.Body,
+	).Scan(&note.Id, &note.Title, &note.Body, &createdAt)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("insert: %w", err))
+	}
+	note.CreatedAt = createdAt.Format(time.RFC3339)
+	return connect.NewResponse(&note), nil
+}
+
+func (s *noteServer) GetNote(ctx context.Context, req *connect.Request[notev1.GetNoteRequest]) (*connect.Response[notev1.Note], error) {
+	var note notev1.Note
+	var createdAt time.Time
+	err := s.pool.QueryRow(ctx,
+		"SELECT id, title, body, created_at FROM notes WHERE id = $1",
+		req.Msg.Id,
+	).Scan(&note.Id, &note.Title, &note.Body, &createdAt)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("note %d not found", req.Msg.Id))
+	}
+	note.CreatedAt = createdAt.Format(time.RFC3339)
+	return connect.NewResponse(&note), nil
+}
+
+func (s *noteServer) ListNotes(ctx context.Context, _ *connect.Request[notev1.ListNotesRequest]) (*connect.Response[notev1.ListNotesResponse], error) {
+	rows, err := s.pool.Query(ctx,
+		"SELECT id, title, body, created_at FROM notes ORDER BY created_at DESC LIMIT 50",
+	)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("query: %w", err))
+	}
+	defer rows.Close()
+
+	var notes []*notev1.Note
+	for rows.Next() {
+		var n notev1.Note
+		var createdAt time.Time
+		if err := rows.Scan(&n.Id, &n.Title, &n.Body, &createdAt); err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("scan: %w", err))
+		}
+		n.CreatedAt = createdAt.Format(time.RFC3339)
+		notes = append(notes, &n)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("rows: %w", err))
+	}
+
+	return connect.NewResponse(&notev1.ListNotesResponse{Notes: notes}), nil
+}
+
+func main() {
+	dbDSN := env.Or("DB_DSN", "postgres://tapbox:tapbox@localhost:5433/tapbox_example?sslmode=disable")
+	addr := env.Or("CONNECT_ADDR", ":50052")
+
+	log.Printf("Connect backend starting (DB: %s)", dbDSN)
+
+	ctx := context.Background()
+	pool, err := db.ConnectWithRetry(ctx, dbDSN, 30)
+	if err != nil {
+		log.Fatalf("connecting to database: %v", err)
+	}
+	defer pool.Close()
+
+	mux := http.NewServeMux()
+	path, handler := notev1connect.NewNoteServiceHandler(&noteServer{pool: pool})
+	mux.Handle(path, handler)
+
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+
+	log.Printf("Connect backend listening on %s", addr)
+	if err := srv.ListenAndServe(); err != nil {
+		log.Fatal(err)
+	}
+}
+

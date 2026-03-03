@@ -1,0 +1,102 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: tapbox
+      POSTGRES_PASSWORD: tapbox
+      POSTGRES_DB: tapbox_example
+    volumes:
+      - ./db:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U tapbox -d tapbox_example" ]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+
+  tapbox:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    command:
+      - --http-target=http://api:3000
+      - --grpc-target=grpc-backend:50051
+      - --sql-target=postgres:5432
+      - --explain-dsn=postgres://tapbox:tapbox@postgres:5432/tapbox_example?sslmode=disable
+    ports:
+      - "8080:8080"
+      - "3080:3080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:3080/ || exit 1" ]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      target: api
+    environment:
+      HTTP_ADDR: ":3000"
+      GRPC_TARGET: "tapbox:9090"
+      CONNECT_TARGET: "http://tapbox:8080"
+      HTTP_BACKEND: "http://tapbox:8080"
+      CONNECT_BACKEND: "http://connect-backend:50052"
+      SEARCH_BACKEND: "http://http-backend:4000"
+    depends_on:
+      - tapbox
+      - connect-backend
+      - http-backend
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1" ]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+
+  grpc-backend:
+    build:
+      context: .
+      target: grpc-backend
+    environment:
+      GRPC_ADDR: ":50051"
+      DB_DSN: "postgres://tapbox:tapbox@tapbox:5433/tapbox_example?sslmode=disable"
+    depends_on:
+      tapbox:
+        condition: service_healthy
+
+  connect-backend:
+    build:
+      context: .
+      target: connect-backend
+    environment:
+      CONNECT_ADDR: ":50052"
+      DB_DSN: "postgres://tapbox:tapbox@tapbox:5433/tapbox_example?sslmode=disable"
+    depends_on:
+      tapbox:
+        condition: service_healthy
+
+  http-backend:
+    build:
+      context: .
+      target: http-backend
+    environment:
+      HTTP_ADDR: ":4000"
+      DB_DSN: "postgres://tapbox:tapbox@tapbox:5433/tapbox_example?sslmode=disable"
+    depends_on:
+      tapbox:
+        condition: service_healthy
+
+  client:
+    build:
+      context: .
+      target: client
+    environment:
+      TARGET: "http://tapbox:8080"
+      INTERVAL: "3s"
+    depends_on:
+      api:
+        condition: service_healthy
