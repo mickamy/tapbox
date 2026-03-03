@@ -1,0 +1,37 @@
+version: 2
+
+release:
+  mode: replace
+
+builds:
+  - id: tapbox
+    main: .
+    binary: tapbox
+    ldflags:
+      - -X main.version={{.Version}}
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - ids:
+      - tapbox
+    formats:
+      - tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+brews:
+  - name: tapbox
+    homepage: https://github.com/mickamy/tapbox
+    description: A local dev tool that traces HTTP, gRPC, and SQL in a single view.
+    install: |
+      bin.install "tapbox"
+    repository:
+      owner: mickamy
+      name: homebrew-tap
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+
+changelog: { }
