@@ -41,9 +41,9 @@ func seedStore(store *trace.MemStore) {
 
 // newTestServer creates a ui.Server and returns its handler for integration-style tests.
 // This ensures path parameters registered via ServeMux patterns are populated correctly.
-func newTestServer(t *testing.T, store *trace.MemStore, explainDSN string) http.Handler {
+func newTestServer(t *testing.T, store *trace.MemStore) http.Handler {
 	t.Helper()
-	srv := ui.NewServer(store, explainDSN)
+	srv := ui.NewServer(store, "")
 	srv.Start(t.Context())
 	return srv.Handler()
 }
@@ -54,7 +54,7 @@ func TestAPI_HandleListTraces(t *testing.T) {
 
 	store := trace.NewMemStore(100)
 	seedStore(store)
-	handler := newTestServer(t, store, "")
+	handler := newTestServer(t, store)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/traces?limit=50", nil)
 	rec := httptest.NewRecorder()
@@ -78,7 +78,7 @@ func TestAPI_HandleListTraces_Empty(t *testing.T) {
 	_ = t.Context()
 
 	store := trace.NewMemStore(100)
-	handler := newTestServer(t, store, "")
+	handler := newTestServer(t, store)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/traces", nil)
 	rec := httptest.NewRecorder()
@@ -95,7 +95,7 @@ func TestAPI_HandleListTraces_DefaultLimit(t *testing.T) {
 
 	store := trace.NewMemStore(100)
 	seedStore(store)
-	handler := newTestServer(t, store, "")
+	handler := newTestServer(t, store)
 
 	// No limit param → should use default (50)
 	req := httptest.NewRequest(http.MethodGet, "/api/traces", nil)
@@ -113,7 +113,7 @@ func TestAPI_HandleGetTrace(t *testing.T) {
 
 	store := trace.NewMemStore(100)
 	seedStore(store)
-	handler := newTestServer(t, store, "")
+	handler := newTestServer(t, store)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/traces/aaaa1111bbbb2222cccc3333dddd4444", nil)
 	rec := httptest.NewRecorder()
@@ -140,7 +140,7 @@ func TestAPI_HandleGetTrace_NotFound(t *testing.T) {
 	_ = t.Context()
 
 	store := trace.NewMemStore(100)
-	handler := newTestServer(t, store, "")
+	handler := newTestServer(t, store)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/traces/nonexistent", nil)
 	rec := httptest.NewRecorder()
@@ -157,7 +157,7 @@ func TestAPI_HandleGetSpan(t *testing.T) {
 
 	store := trace.NewMemStore(100)
 	seedStore(store)
-	handler := newTestServer(t, store, "")
+	handler := newTestServer(t, store)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/spans/aaaa1111bbbb2222cccc3333dddd4444/5555666677778888", nil)
 	rec := httptest.NewRecorder()
@@ -185,7 +185,7 @@ func TestAPI_HandleGetSpan_NotFound(t *testing.T) {
 
 	store := trace.NewMemStore(100)
 	seedStore(store)
-	handler := newTestServer(t, store, "")
+	handler := newTestServer(t, store)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/spans/aaaa1111bbbb2222cccc3333dddd4444/nonexistent", nil)
 	rec := httptest.NewRecorder()
@@ -201,7 +201,7 @@ func TestAPI_HandleGetSpan_TraceNotFound(t *testing.T) {
 	_ = t.Context()
 
 	store := trace.NewMemStore(100)
-	handler := newTestServer(t, store, "")
+	handler := newTestServer(t, store)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/spans/nonexistent/nonexistent", nil)
 	rec := httptest.NewRecorder()
@@ -217,7 +217,7 @@ func TestAPI_HandleGetSpan_MissingParams(t *testing.T) {
 	_ = t.Context()
 
 	store := trace.NewMemStore(100)
-	handler := newTestServer(t, store, "")
+	handler := newTestServer(t, store)
 
 	// Path doesn't match /api/spans/{traceID}/{spanID}, so ServeMux returns 404.
 	req := httptest.NewRequest(http.MethodGet, "/api/spans/onlyoneid", nil)
@@ -234,7 +234,7 @@ func TestAPI_HandleExplain_NoDSN(t *testing.T) {
 	_ = t.Context()
 
 	store := trace.NewMemStore(100)
-	handler := newTestServer(t, store, "")
+	handler := newTestServer(t, store)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/explain", nil)
 	rec := httptest.NewRecorder()

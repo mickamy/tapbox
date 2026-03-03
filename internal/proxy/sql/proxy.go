@@ -121,9 +121,28 @@ type netConnAdapter struct {
 	conn net.Conn
 }
 
-func (n netConnAdapter) Read(b []byte) (int, error)  { return n.conn.Read(b) }
-func (n netConnAdapter) Write(b []byte) (int, error) { return n.conn.Write(b) }
-func (n netConnAdapter) Close() error                { return n.conn.Close() }
+func (n netConnAdapter) Read(b []byte) (int, error) {
+	nr, err := n.conn.Read(b)
+	if err != nil {
+		return nr, fmt.Errorf("reading from connection: %w", err)
+	}
+	return nr, nil
+}
+
+func (n netConnAdapter) Write(b []byte) (int, error) {
+	nw, err := n.conn.Write(b)
+	if err != nil {
+		return nw, fmt.Errorf("writing to connection: %w", err)
+	}
+	return nw, nil
+}
+
+func (n netConnAdapter) Close() error {
+	if err := n.conn.Close(); err != nil {
+		return fmt.Errorf("closing connection: %w", err)
+	}
+	return nil
+}
 
 func truncateQuery(q string, maxLen int) string {
 	if len(q) <= maxLen {

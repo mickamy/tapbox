@@ -43,7 +43,10 @@ func (RawCodec) Unmarshal(data mem.BufferSlice, v any) error {
 		return nil
 	default:
 		if m, ok := v.(proto.Message); ok {
-			return proto.Unmarshal(buf, m)
+			if err := proto.Unmarshal(buf, m); err != nil {
+				return fmt.Errorf("raw codec unmarshal proto: %w", err)
+			}
+			return nil
 		}
 		return fmt.Errorf("raw codec: unsupported unmarshal type %T", v)
 	}

@@ -33,13 +33,17 @@ func (k SpanKind) String() string {
 }
 
 func (k SpanKind) MarshalJSON() ([]byte, error) {
-	return json.Marshal(k.String())
+	b, err := json.Marshal(k.String())
+	if err != nil {
+		return nil, fmt.Errorf("marshaling span kind: %w", err)
+	}
+	return b, nil
 }
 
 func (k *SpanKind) UnmarshalJSON(data []byte) error {
 	var s string
 	if err := json.Unmarshal(data, &s); err != nil {
-		return err
+		return fmt.Errorf("unmarshaling span kind: %w", err)
 	}
 	switch s {
 	case "http":
@@ -71,13 +75,17 @@ func (s SpanStatus) String() string {
 }
 
 func (s SpanStatus) MarshalJSON() ([]byte, error) {
-	return json.Marshal(s.String())
+	b, err := json.Marshal(s.String())
+	if err != nil {
+		return nil, fmt.Errorf("marshaling span status: %w", err)
+	}
+	return b, nil
 }
 
 func (s *SpanStatus) UnmarshalJSON(data []byte) error {
 	var str string
 	if err := json.Unmarshal(data, &str); err != nil {
-		return err
+		return fmt.Errorf("unmarshaling span status: %w", err)
 	}
 	switch str {
 	case "ok":

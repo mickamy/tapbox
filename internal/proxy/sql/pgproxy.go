@@ -285,7 +285,7 @@ type connReader struct{ conn RawConn }
 func (r connReader) Read(b []byte) (int, error) {
 	n, err := r.conn.Read(b)
 	if err != nil {
-		return n, fmt.Errorf("conn read: %w", err)
+		return n, fmt.Errorf("reading from connection: %w", err)
 	}
 	return n, nil
 }
@@ -298,7 +298,7 @@ type connWriter struct{ conn RawConn }
 func (w connWriter) Write(b []byte) (int, error) {
 	n, err := w.conn.Write(b)
 	if err != nil {
-		return n, fmt.Errorf("conn write: %w", err)
+		return n, fmt.Errorf("writing to connection: %w", err)
 	}
 	return n, nil
 }

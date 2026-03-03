@@ -71,7 +71,7 @@ func run() error {
 			<-ctx.Done()
 			shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), shutdownTimeout)
 			defer shutdownCancel()
-			if closeErr := srv.Shutdown(shutdownCtx); closeErr != nil {
+			if closeErr := srv.Shutdown(shutdownCtx); closeErr != nil { //nolint:contextcheck // fresh context for shutdown
 				log.Printf("http proxy shutdown: %v", closeErr)
 			}
 		}()
@@ -143,7 +143,7 @@ func run() error {
 			<-ctx.Done()
 			shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), shutdownTimeout)
 			defer shutdownCancel()
-			if closeErr := srv.Shutdown(shutdownCtx); closeErr != nil {
+			if closeErr := srv.Shutdown(shutdownCtx); closeErr != nil { //nolint:contextcheck // fresh context for shutdown
 				log.Printf("ui server shutdown: %v", closeErr)
 			}
 		}()
