@@ -183,15 +183,17 @@ func captureBody(rc io.ReadCloser, maxCapture int) (captured []byte, body io.Rea
 	// Check if there is more data beyond the capture limit.
 	// If so, concatenate captured bytes with the remaining stream.
 	var probe [1]byte
-	n, probeErr := rc.Read(probe[:])
-	if n == 0 || probeErr != nil {
+	n, _ := rc.Read(probe[:])
+	if n == 0 {
 		// Body fits within maxCapture; no remainder.
 		_ = rc.Close()
 		return head, io.NopCloser(bytes.NewReader(head)), int64(len(head))
 	}
 
 	// Body exceeds maxCapture: stream the remainder without buffering it all.
-	remainder := io.MultiReader(bytes.NewReader(probe[:1]), rc)
+	// Note: n>0 with probeErr (e.g. io.EOF) is valid — the probed byte must
+	// still be included in the forwarded body.
+	remainder := io.MultiReader(bytes.NewReader(probe[:n]), rc)
 	combined := io.NopCloser(io.MultiReader(bytes.NewReader(head), remainder))
 	return head, combined, -1 // -1 = chunked / unknown length
 }
