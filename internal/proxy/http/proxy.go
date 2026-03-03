@@ -177,7 +177,7 @@ func captureBody(rc io.ReadCloser, maxCapture int) (captured []byte, body io.Rea
 	if err != nil {
 		// On read error, return what we have and let upstream handle it.
 		_ = rc.Close()
-		return nil, io.NopCloser(bytes.NewReader(head)), int64(len(head))
+		return head, io.NopCloser(bytes.NewReader(head)), int64(len(head))
 	}
 
 	// Check if there is more data beyond the capture limit.
