@@ -228,10 +228,14 @@ func TestMemStore_Unsubscribe(t *testing.T) {
 	ch := store.Subscribe()
 	store.Unsubscribe(ch)
 
-	// After unsubscribe, channel should be closed.
-	_, ok := <-ch
-	if ok {
-		t.Error("channel should be closed after unsubscribe")
+	// After unsubscribe, new spans should not be delivered.
+	store.Add(newSpan("trace1", "span1"))
+
+	select {
+	case <-ch:
+		t.Error("should not receive spans after unsubscribe")
+	default:
+		// expected: no message delivered
 	}
 }
 

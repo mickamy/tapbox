@@ -50,20 +50,16 @@ func (m *MemStore) Add(span *Span) {
 	t.Spans = append(t.Spans, span)
 	updateTraceTiming(t)
 
-	// Copy subscriber list under lock, then notify without lock.
-	subs := make([]chan *Span, 0, len(m.subscribers))
+	// Notify subscribers under lock to prevent sending on a channel that has
+	// been removed (and potentially closed) by Unsubscribe.
 	for ch := range m.subscribers {
-		subs = append(subs, ch)
-	}
-	m.mu.Unlock()
-
-	for _, ch := range subs {
 		select {
 		case ch <- span:
 		default:
 			// Drop if subscriber is slow.
 		}
 	}
+	m.mu.Unlock()
 }
 
 func (m *MemStore) GetTrace(traceID string) *Trace {
@@ -120,7 +116,6 @@ func (m *MemStore) Unsubscribe(ch <-chan *Span) {
 	for bch := range m.subscribers {
 		if (<-chan *Span)(bch) == ch {
 			delete(m.subscribers, bch)
-			close(bch)
 			break
 		}
 	}
