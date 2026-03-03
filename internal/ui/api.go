@@ -33,7 +33,7 @@ func (a *API) HandleListTraces(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) HandleGetTrace(w http.ResponseWriter, r *http.Request) {
-	traceID := extractPathParam(r.URL.Path, "/api/traces/")
+	traceID := r.PathValue("traceID")
 	if traceID == "" {
 		http.Error(w, "trace ID required", http.StatusBadRequest)
 		return
@@ -49,22 +49,21 @@ func (a *API) HandleGetTrace(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) HandleGetSpan(w http.ResponseWriter, r *http.Request) {
-	// Path: /api/spans/{traceID}/{spanID}
-	path := strings.TrimPrefix(r.URL.Path, "/api/spans/")
-	parts := strings.SplitN(path, "/", 2)
-	if len(parts) < 2 {
+	traceID := r.PathValue("traceID")
+	spanID := r.PathValue("spanID")
+	if traceID == "" || spanID == "" {
 		http.Error(w, "trace ID and span ID required", http.StatusBadRequest)
 		return
 	}
 
-	t := a.store.GetTrace(parts[0])
+	t := a.store.GetTrace(traceID)
 	if t == nil {
 		http.Error(w, "trace not found", http.StatusNotFound)
 		return
 	}
 
 	for _, s := range t.Spans {
-		if s.SpanID == parts[1] {
+		if s.SpanID == spanID {
 			writeJSON(w, s)
 			return
 		}
@@ -144,15 +143,6 @@ func runExplain(ctx context.Context, dsn, query string, analyze bool) (string, e
 		return "", fmt.Errorf("iterating explain rows: %w", err)
 	}
 	return strings.Join(lines, "\n"), nil
-}
-
-func extractPathParam(path, prefix string) string {
-	s := strings.TrimPrefix(path, prefix)
-	// Remove trailing slashes and any sub-path.
-	if i := strings.Index(s, "/"); i >= 0 {
-		s = s[:i]
-	}
-	return s
 }
 
 func writeJSON(w http.ResponseWriter, v any) {
