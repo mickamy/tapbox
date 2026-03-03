@@ -56,7 +56,6 @@ func (p *Proxy) UnknownHandler() grpc.StreamHandler {
 			return status.Error(codes.Internal, "failed to get method name")
 		}
 
-		start := time.Now()
 		service, method := splitMethod(fullMethod)
 
 		// Extract trace context from incoming metadata.
@@ -78,8 +77,14 @@ func (p *Proxy) UnknownHandler() grpc.StreamHandler {
 			ClientStreams: true,
 		}, fullMethod, grpc.ForceCodecV2(RawCodec{}))
 		if err != nil {
-			return p.submitSpanAt(traceID, parentID, spanID, service, method, nil, nil, md, start, time.Now(), err)
+			now := time.Now()
+			return p.submitSpanAt(traceID, parentID, spanID, service, method, nil, nil, md, now, now, err)
 		}
+
+		// Measure start right before relay begins, excluding setup overhead
+		// (metadata extraction, context creation, stream opening) so that
+		// the gRPC span duration reflects actual request relay time.
+		start := time.Now()
 
 		// Relay messages bidirectionally.
 		var reqBytes, respBytes []byte
