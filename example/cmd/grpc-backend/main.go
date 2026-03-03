@@ -15,6 +15,7 @@ import (
 	notev1 "github.com/mickamy/tapbox/example/gen/note/v1"
 	"github.com/mickamy/tapbox/example/internal/db"
 	"github.com/mickamy/tapbox/example/internal/env"
+	"github.com/mickamy/tapbox/example/internal/tracing"
 )
 
 type noteServer struct {
@@ -28,10 +29,14 @@ func (s *noteServer) CreateNote(ctx context.Context, req *notev1.CreateNoteReque
 		return nil, status.Error(codes.InvalidArgument, "title is required")
 	}
 
+	tp := tracing.FromGRPCContext(ctx)
 	var note notev1.Note
 	var createdAt time.Time
 	err := s.pool.QueryRow(ctx,
-		"INSERT INTO notes (title, body) VALUES ($1, $2) RETURNING id, title, body, created_at",
+		tracing.AppendTraceparent(
+			"INSERT INTO notes (title, body) VALUES ($1, $2) RETURNING id, title, body, created_at",
+			tp,
+		),
 		req.GetTitle(), req.GetBody(),
 	).Scan(&note.Id, &note.Title, &note.Body, &createdAt)
 	if err != nil {
@@ -42,10 +47,14 @@ func (s *noteServer) CreateNote(ctx context.Context, req *notev1.CreateNoteReque
 }
 
 func (s *noteServer) GetNote(ctx context.Context, req *notev1.GetNoteRequest) (*notev1.Note, error) {
+	tp := tracing.FromGRPCContext(ctx)
 	var note notev1.Note
 	var createdAt time.Time
 	err := s.pool.QueryRow(ctx,
-		"SELECT id, title, body, created_at FROM notes WHERE id = $1",
+		tracing.AppendTraceparent(
+			"SELECT id, title, body, created_at FROM notes WHERE id = $1",
+			tp,
+		),
 		req.GetId(),
 	).Scan(&note.Id, &note.Title, &note.Body, &createdAt)
 	if err != nil {
@@ -56,8 +65,12 @@ func (s *noteServer) GetNote(ctx context.Context, req *notev1.GetNoteRequest) (*
 }
 
 func (s *noteServer) ListNotes(ctx context.Context, _ *notev1.ListNotesRequest) (*notev1.ListNotesResponse, error) {
+	tp := tracing.FromGRPCContext(ctx)
 	rows, err := s.pool.Query(ctx,
-		"SELECT id, title, body, created_at FROM notes ORDER BY created_at DESC LIMIT 50",
+		tracing.AppendTraceparent(
+			"SELECT id, title, body, created_at FROM notes ORDER BY created_at DESC LIMIT 50",
+			tp,
+		),
 	)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "query: %v", err)
