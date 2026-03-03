@@ -127,6 +127,9 @@ func runExplain(ctx context.Context, dsn, query string, analyze bool) (string, e
 	if _, err := tx.Exec(ctx, "SET TRANSACTION READ ONLY"); err != nil {
 		return "", fmt.Errorf("setting read-only transaction: %w", err)
 	}
+	if _, err := tx.Exec(ctx, "SET LOCAL statement_timeout = '10s'"); err != nil {
+		return "", fmt.Errorf("setting statement timeout: %w", err)
+	}
 
 	prefix := "EXPLAIN "
 	if analyze {
