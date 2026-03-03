@@ -108,11 +108,25 @@ func runExplain(ctx context.Context, dsn, query string, analyze bool) (string, e
 	if err != nil {
 		return "", err
 	}
+
+	// Run EXPLAIN inside a read-only transaction to prevent data modification.
+	// This guards against malicious input such as "DELETE FROM users" being
+	// executed via EXPLAIN ANALYZE, which actually runs the query.
+	tx, err := pgxPool.Begin(ctx)
+	if err != nil {
+		return "", fmt.Errorf("beginning transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if _, err := tx.Exec(ctx, "SET TRANSACTION READ ONLY"); err != nil {
+		return "", fmt.Errorf("setting read-only transaction: %w", err)
+	}
+
 	prefix := "EXPLAIN "
 	if analyze {
 		prefix = "EXPLAIN ANALYZE "
 	}
-	rows, err := pgxPool.Query(ctx, prefix+query)
+	rows, err := tx.Query(ctx, prefix+query)
 	if err != nil {
 		return "", fmt.Errorf("executing explain: %w", err)
 	}
