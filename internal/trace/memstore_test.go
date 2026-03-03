@@ -134,8 +134,8 @@ func TestMemStore_ListTraces_Empty(t *testing.T) {
 
 	store := trace.NewMemStore(100)
 	traces := store.ListTraces(0, 10)
-	if traces != nil {
-		t.Errorf("expected nil for empty store, got %v", traces)
+	if len(traces) != 0 {
+		t.Errorf("expected empty slice for empty store, got %d", len(traces))
 	}
 }
 

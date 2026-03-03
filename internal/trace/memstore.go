@@ -79,7 +79,7 @@ func (m *MemStore) ListTraces(offset, limit int) []*Trace {
 	// Collect traces in reverse insertion order (newest first).
 	total := len(m.traces)
 	if total == 0 || offset >= total {
-		return nil
+		return []*Trace{}
 	}
 
 	ids := m.orderedIDs()
@@ -90,7 +90,7 @@ func (m *MemStore) ListTraces(offset, limit int) []*Trace {
 
 	if offset > 0 {
 		if offset >= len(ids) {
-			return nil
+			return []*Trace{}
 		}
 		ids = ids[offset:]
 	}
