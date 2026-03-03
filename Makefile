@@ -43,3 +43,4 @@ lint:
 		exit 1; \
 	}
 	golangci-lint run
+	cd example && golangci-lint run
