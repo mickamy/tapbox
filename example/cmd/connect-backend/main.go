@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -20,16 +21,19 @@ type noteServer struct {
 	pool *pgxpool.Pool
 }
 
-func (s *noteServer) CreateNote(ctx context.Context, req *connect.Request[notev1.CreateNoteRequest]) (*connect.Response[notev1.Note], error) {
-	if req.Msg.Title == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("title is required"))
+func (s *noteServer) CreateNote(
+	ctx context.Context,
+	req *connect.Request[notev1.CreateNoteRequest],
+) (*connect.Response[notev1.Note], error) {
+	if req.Msg.GetTitle() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("title is required"))
 	}
 
 	var note notev1.Note
 	var createdAt time.Time
 	err := s.pool.QueryRow(ctx,
 		"INSERT INTO notes (title, body) VALUES ($1, $2) RETURNING id, title, body, created_at",
-		req.Msg.Title, req.Msg.Body,
+		req.Msg.GetTitle(), req.Msg.GetBody(),
 	).Scan(&note.Id, &note.Title, &note.Body, &createdAt)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("insert: %w", err))
@@ -38,21 +42,30 @@ func (s *noteServer) CreateNote(ctx context.Context, req *connect.Request[notev1
 	return connect.NewResponse(&note), nil
 }
 
-func (s *noteServer) GetNote(ctx context.Context, req *connect.Request[notev1.GetNoteRequest]) (*connect.Response[notev1.Note], error) {
+func (s *noteServer) GetNote(
+	ctx context.Context,
+	req *connect.Request[notev1.GetNoteRequest],
+) (*connect.Response[notev1.Note], error) {
 	var note notev1.Note
 	var createdAt time.Time
 	err := s.pool.QueryRow(ctx,
 		"SELECT id, title, body, created_at FROM notes WHERE id = $1",
-		req.Msg.Id,
+		req.Msg.GetId(),
 	).Scan(&note.Id, &note.Title, &note.Body, &createdAt)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("note %d not found", req.Msg.Id))
+		return nil, connect.NewError(
+			connect.CodeNotFound,
+			fmt.Errorf("note %d not found", req.Msg.GetId()),
+		)
 	}
 	note.CreatedAt = createdAt.Format(time.RFC3339)
 	return connect.NewResponse(&note), nil
 }
 
-func (s *noteServer) ListNotes(ctx context.Context, _ *connect.Request[notev1.ListNotesRequest]) (*connect.Response[notev1.ListNotesResponse], error) {
+func (s *noteServer) ListNotes(
+	ctx context.Context,
+	_ *connect.Request[notev1.ListNotesRequest],
+) (*connect.Response[notev1.ListNotesResponse], error) {
 	rows, err := s.pool.Query(ctx,
 		"SELECT id, title, body, created_at FROM notes ORDER BY created_at DESC LIMIT 50",
 	)
@@ -103,7 +116,6 @@ func main() {
 
 	log.Printf("Connect backend listening on %s", addr)
 	if err := srv.ListenAndServe(); err != nil {
-		log.Fatal(err)
+		log.Fatal(err) //nolint:gocritic // main exit
 	}
 }
-

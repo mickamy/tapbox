@@ -19,11 +19,12 @@ import (
 
 type noteServer struct {
 	notev1.UnimplementedNoteServiceServer
+
 	pool *pgxpool.Pool
 }
 
 func (s *noteServer) CreateNote(ctx context.Context, req *notev1.CreateNoteRequest) (*notev1.Note, error) {
-	if req.Title == "" {
+	if req.GetTitle() == "" {
 		return nil, status.Error(codes.InvalidArgument, "title is required")
 	}
 
@@ -31,7 +32,7 @@ func (s *noteServer) CreateNote(ctx context.Context, req *notev1.CreateNoteReque
 	var createdAt time.Time
 	err := s.pool.QueryRow(ctx,
 		"INSERT INTO notes (title, body) VALUES ($1, $2) RETURNING id, title, body, created_at",
-		req.Title, req.Body,
+		req.GetTitle(), req.GetBody(),
 	).Scan(&note.Id, &note.Title, &note.Body, &createdAt)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "insert: %v", err)
@@ -45,10 +46,10 @@ func (s *noteServer) GetNote(ctx context.Context, req *notev1.GetNoteRequest) (*
 	var createdAt time.Time
 	err := s.pool.QueryRow(ctx,
 		"SELECT id, title, body, created_at FROM notes WHERE id = $1",
-		req.Id,
+		req.GetId(),
 	).Scan(&note.Id, &note.Title, &note.Body, &createdAt)
 	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "note %d not found", req.Id)
+		return nil, status.Errorf(codes.NotFound, "note %d not found", req.GetId())
 	}
 	note.CreatedAt = createdAt.Format(time.RFC3339)
 	return &note, nil
@@ -92,9 +93,10 @@ func main() {
 	}
 	defer pool.Close()
 
-	ln, err := net.Listen("tcp", grpcAddr)
+	var lc net.ListenConfig
+	ln, err := lc.Listen(ctx, "tcp", grpcAddr)
 	if err != nil {
-		log.Fatalf("listen: %v", err)
+		log.Fatalf("listen: %v", err) //nolint:gocritic // main exit
 	}
 
 	srv := grpc.NewServer()
@@ -106,4 +108,3 @@ func main() {
 		log.Fatal(err)
 	}
 }
-

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"log"
 	"math/rand/v2"
@@ -39,7 +40,7 @@ func main() {
 	log.Printf("Client started: target=%s interval=%s", target, interval)
 
 	for {
-		switch rand.IntN(3) {
+		switch rand.IntN(3) { //nolint:gosec // demo client
 		case 0: // POST /notes — composite endpoint (gRPC + Connect + HTTP)
 			id := createNote(httpClient, target)
 			if id > maxID {
@@ -49,7 +50,7 @@ func main() {
 			listNotes(httpClient, target)
 		case 2: // GET /notes/{id}
 			if maxID > 0 {
-				getNote(httpClient, target, rand.Int64N(maxID)+1)
+				getNote(httpClient, target, rand.Int64N(maxID)+1) //nolint:gosec // demo client
 			} else {
 				listNotes(httpClient, target)
 			}
@@ -59,17 +60,25 @@ func main() {
 }
 
 func createNote(client *http.Client, target string) int64 {
-	payload, _ := json.Marshal(map[string]string{
-		"title": titles[rand.IntN(len(titles))],
-		"body":  bodies[rand.IntN(len(bodies))],
+	payload, _ := json.Marshal(map[string]string{ //nolint:errchkjson // static map
+		"title": titles[rand.IntN(len(titles))], //nolint:gosec // demo client
+		"body":  bodies[rand.IntN(len(bodies))], //nolint:gosec // demo client
 	})
 
-	resp, err := client.Post(target+"/notes", "application/json", bytes.NewReader(payload))
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, target+"/notes", bytes.NewReader(payload))
+	if err != nil {
+		log.Printf("[REST] POST /notes request: %v", err)
+		return 0
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req) //nolint:gosec // URL from config
 	if err != nil {
 		log.Printf("[REST] POST /notes: %v", err)
 		return 0
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	var result struct {
 		Created struct {
@@ -80,26 +89,40 @@ func createNote(client *http.Client, target string) int64 {
 		log.Printf("[REST] POST /notes decode: %v", err)
 		return 0
 	}
-	log.Printf("[REST] POST /notes -> %d", resp.StatusCode)
+	log.Printf("[REST] POST /notes -> %d", resp.StatusCode) //nolint:gosec // status code
 	return result.Created.ID
 }
 
 func listNotes(client *http.Client, target string) {
-	resp, err := client.Get(target + "/notes")
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target+"/notes", nil)
+	if err != nil {
+		log.Printf("[REST] GET /notes request: %v", err)
+		return
+	}
+
+	resp, err := client.Do(req) //nolint:gosec // URL from config
 	if err != nil {
 		log.Printf("[REST] GET /notes: %v", err)
 		return
 	}
-	defer resp.Body.Close()
-	log.Printf("[REST] GET /notes -> %d", resp.StatusCode)
+	defer resp.Body.Close()                                //nolint:errcheck
+	log.Printf("[REST] GET /notes -> %d", resp.StatusCode) //nolint:gosec // status code
 }
 
 func getNote(client *http.Client, target string, id int64) {
-	resp, err := client.Get(target + "/notes/" + strconv.FormatInt(id, 10))
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target+"/notes/"+strconv.FormatInt(id, 10), nil)
+	if err != nil {
+		log.Printf("[REST] GET /notes/%d request: %v", id, err)
+		return
+	}
+
+	resp, err := client.Do(req) //nolint:gosec // URL from config
 	if err != nil {
 		log.Printf("[REST] GET /notes/%d: %v", id, err)
 		return
 	}
-	defer resp.Body.Close()
-	log.Printf("[REST] GET /notes/%d -> %d", id, resp.StatusCode)
+	defer resp.Body.Close()                                       //nolint:errcheck
+	log.Printf("[REST] GET /notes/%d -> %d", id, resp.StatusCode) //nolint:gosec // status code
 }

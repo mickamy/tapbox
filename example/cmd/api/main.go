@@ -29,15 +29,7 @@ func main() {
 	searchBackend := env.Or("SEARCH_BACKEND", "http://localhost:4000")
 	httpAddr := env.Or("HTTP_ADDR", ":3000")
 
-	conn, err := grpc.NewClient(grpcTarget, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		log.Fatalf("grpc dial: %v", err)
-	}
-	defer conn.Close()
-
-	grpcClient := notev1.NewNoteServiceClient(conn)
-	connectClient := notev1connect.NewNoteServiceClient(http.DefaultClient, connectTarget)
-
+	// Parse URLs before creating resources with defers.
 	httpBackendURL, err := url.Parse(httpBackend)
 	if err != nil {
 		log.Fatalf("parsing http backend: %v", err)
@@ -52,6 +44,15 @@ func main() {
 	if err != nil {
 		log.Fatalf("parsing search backend: %v", err)
 	}
+
+	conn, err := grpc.NewClient(grpcTarget, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("grpc dial: %v", err)
+	}
+	defer conn.Close() //nolint:errcheck
+
+	grpcClient := notev1.NewNoteServiceClient(conn)
+	connectClient := notev1connect.NewNoteServiceClient(http.DefaultClient, connectTarget)
 
 	mux := http.NewServeMux()
 
@@ -81,7 +82,7 @@ func main() {
 	log.Printf("API server listening on %s (gRPC: %s, Connect: %s, HTTP: %s)",
 		httpAddr, grpcTarget, connectTarget, httpBackend)
 	if err := srv.ListenAndServe(); err != nil {
-		log.Fatal(err)
+		log.Fatal(err) //nolint:gocritic // main exit
 	}
 }
 
@@ -166,7 +167,7 @@ func handleCreateNote(
 
 		writeJSON(w, http.StatusCreated, compositeResponse{
 			Created: note,
-			Notes:   listResp.Msg.Notes,
+			Notes:   listResp.Msg.GetNotes(),
 			Related: related,
 		})
 	}
@@ -188,12 +189,12 @@ func searchHTTPBackend(ctx context.Context, backend *url.URL, query, traceparent
 		req.Header.Set("Traceparent", traceparent)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req) //nolint:gosec // URL from config
 	if err != nil {
 		log.Printf("HTTP search: %v", err)
 		return nil
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	var results []searchResult
 	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
@@ -212,7 +213,7 @@ func handleGetNote(client notev1.NoteServiceClient) http.HandlerFunc {
 		}
 
 		r = withTraceparent(r)
-		note, err := client.GetNote(r.Context(), &notev1.GetNoteRequest{Id: id})
+		note, err := client.GetNote(r.Context(), &notev1.GetNoteRequest{Id: id}) //nolint:contextcheck
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 			return
@@ -225,12 +226,12 @@ func handleGetNote(client notev1.NoteServiceClient) http.HandlerFunc {
 func handleListNotes(client notev1.NoteServiceClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		r = withTraceparent(r)
-		resp, err := client.ListNotes(r.Context(), &notev1.ListNotesRequest{})
+		resp, err := client.ListNotes(r.Context(), &notev1.ListNotesRequest{}) //nolint:contextcheck
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 			return
 		}
-		writeJSON(w, http.StatusOK, resp.Notes)
+		writeJSON(w, http.StatusOK, resp.GetNotes())
 	}
 }
 

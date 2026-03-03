@@ -47,7 +47,7 @@ func main() {
 
 	log.Printf("HTTP backend listening on %s", addr)
 	if err := srv.ListenAndServe(); err != nil {
-		log.Fatal(err)
+		log.Fatal(err) //nolint:gocritic // main exit
 	}
 }
 
@@ -92,4 +92,3 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 		log.Printf("json encode: %v", err)
 	}
 }
-
