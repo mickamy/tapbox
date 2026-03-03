@@ -78,6 +78,9 @@ func Parse(args []string) (Config, error) {
 	if c.HTTPTarget == "" {
 		return Config{}, errors.New("--http-target is required")
 	}
+	if c.MaxBodySize < 0 {
+		return Config{}, errors.New("--max-body-size must be non-negative")
+	}
 	if c.MaxTraces < 1 {
 		return Config{}, errors.New("--max-traces must be at least 1")
 	}
