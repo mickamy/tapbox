@@ -82,6 +82,19 @@ All flags can also be set in a `.tapbox.yaml` file (auto-loaded from the current
 | `--explain-dsn`   | *(sql-target)*              | PostgreSQL DSN for EXPLAIN queries              |
 | `--config`        | `.tapbox.yaml` (if present) | Path to YAML config file                        |
 
+## Comparison
+
+|                       | tapbox                     | Jaeger / Zipkin               | OpenTelemetry Collector         | mitmproxy      |
+|-----------------------|----------------------------|-------------------------------|---------------------------------|----------------|
+| **Setup**             | Single binary, zero config | Backend + SDK instrumentation | Collector + SDK instrumentation | Single binary  |
+| **Code changes**      | None (reverse proxy)       | SDK integration required      | SDK integration required        | None (proxy)   |
+| **HTTP**              | Yes                        | Yes (via SDK)                 | Yes (via SDK)                   | Yes            |
+| **gRPC / Connect**    | Yes                        | Yes (via SDK)                 | Yes (via SDK)                   | Limited        |
+| **SQL capture**       | Yes (wire protocol)        | Yes (via SDK)                 | Yes (via SDK)                   | No             |
+| **Trace correlation** | Automatic                  | Manual (SDK)                  | Manual (SDK)                    | No             |
+| **EXPLAIN**           | Built-in                   | No                            | No                              | No             |
+| **Use case**          | Local dev                  | Production / staging          | Production / staging            | HTTP debugging |
+
 ## Architecture
 
 ```
