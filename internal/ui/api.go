@@ -100,7 +100,19 @@ func (a *API) HandleExplain(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	plan, err := runExplain(r.Context(), a.explainDSN, req.Query, req.Analyze)
+	query := strings.TrimSpace(req.Query)
+	// Strip optional trailing semicolon, then reject multi-statement input.
+	query = strings.TrimRight(query, "; \t\n")
+	if query == "" {
+		writeJSONError(w, http.StatusBadRequest, "query is required")
+		return
+	}
+	if strings.Contains(query, ";") {
+		writeJSONError(w, http.StatusBadRequest, "multi-statement queries are not allowed")
+		return
+	}
+
+	plan, err := runExplain(r.Context(), a.explainDSN, query, req.Analyze)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "explain failed: "+err.Error())
 		return
