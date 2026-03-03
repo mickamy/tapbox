@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -70,7 +71,7 @@ func run() error {
 			}
 		}()
 		log.Printf("HTTP proxy listening on %s -> %s", cfg.HTTPListen, cfg.HTTPTarget)
-		if srvErr := srv.ListenAndServe(); srvErr != nil && srvErr != http.ErrServerClosed {
+		if srvErr := srv.ListenAndServe(); srvErr != nil && !errors.Is(srvErr, http.ErrServerClosed) {
 			return fmt.Errorf("http proxy: %w", srvErr)
 		}
 		return nil
@@ -134,7 +135,7 @@ func run() error {
 			}
 		}()
 		log.Printf("UI available at http://localhost%s", cfg.UIListen)
-		if srvErr := srv.ListenAndServe(); srvErr != nil && srvErr != http.ErrServerClosed {
+		if srvErr := srv.ListenAndServe(); srvErr != nil && !errors.Is(srvErr, http.ErrServerClosed) {
 			return fmt.Errorf("ui server: %w", srvErr)
 		}
 		return nil
