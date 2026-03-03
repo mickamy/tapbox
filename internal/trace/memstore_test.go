@@ -63,7 +63,7 @@ func TestMemStore_MultipleSpansSameTrace(t *testing.T) {
 	}
 }
 
-func TestMemStore_ListTraces_NewestFirst(t *testing.T) {
+func TestMemStore_ListTraces_OldestFirst(t *testing.T) {
 	t.Parallel()
 	_ = t.Context()
 
@@ -79,12 +79,12 @@ func TestMemStore_ListTraces_NewestFirst(t *testing.T) {
 	if len(traces) != 5 {
 		t.Fatalf("len(traces) = %d, want 5", len(traces))
 	}
-	// Newest first = last inserted first
-	if traces[0].TraceID != "tracee" {
-		t.Errorf("first trace = %q, want %q", traces[0].TraceID, "tracee")
+	// Oldest first = first inserted first
+	if traces[0].TraceID != "tracea" {
+		t.Errorf("first trace = %q, want %q", traces[0].TraceID, "tracea")
 	}
-	if traces[4].TraceID != "tracea" {
-		t.Errorf("last trace = %q, want %q", traces[4].TraceID, "tracea")
+	if traces[4].TraceID != "tracee" {
+		t.Errorf("last trace = %q, want %q", traces[4].TraceID, "tracee")
 	}
 }
 

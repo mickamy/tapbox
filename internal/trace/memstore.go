@@ -76,17 +76,13 @@ func (m *MemStore) ListTraces(offset, limit int) []*Trace {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	// Collect traces in reverse insertion order (newest first).
+	// Collect traces in insertion order (oldest first).
 	total := len(m.traces)
 	if total == 0 || offset >= total {
 		return []*Trace{}
 	}
 
 	ids := m.orderedIDs()
-	// Reverse to get newest first.
-	for i, j := 0, len(ids)-1; i < j; i, j = i+1, j-1 {
-		ids[i], ids[j] = ids[j], ids[i]
-	}
 
 	if offset > 0 {
 		if offset >= len(ids) {

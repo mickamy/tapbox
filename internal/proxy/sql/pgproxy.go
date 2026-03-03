@@ -152,6 +152,11 @@ func relayAuth(client, server RawConn) bool {
 }
 
 func proxyClientToServer(client, server RawConn, connID uint64, pending chan<- pendingQuery) error {
+	// preparedStmts caches statement name → query text so that Bind-only
+	// executions (pgxpool's QueryExecModeCacheStatement) can be captured.
+	preparedStmts := make(map[string]string)
+	parseSeen := false
+
 	for {
 		msgType, payload, err := readPGMessageFromClient(client)
 		if err != nil {
@@ -169,10 +174,24 @@ func proxyClientToServer(client, server RawConn, connID uint64, pending chan<- p
 			pending <- pendingQuery{query: query, start: start, connID: connID}
 			continue
 		case 'P': // Parse (extended query)
+			name := extractString(payload)
 			query := extractParseQuery(payload)
+			if name != "" && query != "" {
+				preparedStmts[name] = query
+			}
 			if query != "" {
 				pending <- pendingQuery{query: query, start: time.Now(), connID: connID}
+				parseSeen = true
 			}
+		case 'B': // Bind — may reference a cached prepared statement
+			if !parseSeen {
+				stmtName := extractBindStatementName(payload)
+				if query, ok := preparedStmts[stmtName]; ok {
+					pending <- pendingQuery{query: query, start: time.Now(), connID: connID}
+				}
+			}
+		case 'S': // Sync — marks end of an extended-query message group
+			parseSeen = false
 		case 'X': // Terminate
 			_ = writePGMessage(server, msgType, payload)
 			return nil
@@ -263,6 +282,21 @@ func extractString(data []byte) string {
 		}
 	}
 	return string(data)
+}
+
+// extractBindStatementName extracts the source prepared-statement name from
+// a Bind message payload.  Format: portal_name\0 statement_name\0 ...
+func extractBindStatementName(data []byte) string {
+	// Skip the destination portal name.
+	i := 0
+	for i < len(data) && data[i] != 0 {
+		i++
+	}
+	i++ // skip null terminator
+	if i >= len(data) {
+		return ""
+	}
+	return extractString(data[i:])
 }
 
 func extractParseQuery(data []byte) string {

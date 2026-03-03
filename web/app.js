@@ -36,7 +36,7 @@
         if (idx >= 0) {
             traces[idx] = trace;
         } else {
-            traces.unshift(trace);
+            traces.push(trace);
         }
         renderList();
         if (currentTraceID === trace.trace_id) {
