@@ -47,6 +47,7 @@
     // --- API ---
     async function fetchTraces() {
         const resp = await fetch("/api/traces?limit=100");
+        if (!resp.ok) return;
         traces = await resp.json();
         if (!traces) traces = [];
         renderList();
@@ -64,6 +65,10 @@
             headers: {"Content-Type": "application/json"},
             body: JSON.stringify({query, analyze}),
         });
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            return {error: err.error || `HTTP ${resp.status}`};
+        }
         return resp.json();
     }
 
