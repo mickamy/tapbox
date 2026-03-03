@@ -99,6 +99,9 @@ func run() error {
 			go func() {
 				<-ctx.Done()
 				grpcServer.GracefulStop()
+				if closeErr := gp.Close(); closeErr != nil {
+					log.Printf("grpc proxy close: %v", closeErr)
+				}
 			}()
 			log.Printf("gRPC proxy listening on %s -> %s", cfg.GRPCListen, cfg.GRPCTarget)
 			return grpcServer.Serve(ln)
