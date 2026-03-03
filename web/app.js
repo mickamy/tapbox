@@ -54,6 +54,7 @@
 
     async function fetchTrace(traceID) {
         const resp = await fetch(`/api/traces/${traceID}`);
+        if (!resp.ok) return null;
         return resp.json();
     }
 
@@ -137,6 +138,12 @@
         currentTraceID = traceID;
         selectedSpanID = null;
         const trace = await fetchTrace(traceID);
+        if (!trace || !trace.spans) {
+            // Trace was evicted from the store — remove from local list.
+            traces = traces.filter((t) => t.trace_id !== traceID);
+            closeDetail();
+            return;
+        }
         renderList();
         renderDetail(trace);
     }
