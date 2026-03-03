@@ -39,6 +39,13 @@ func main() {
 }
 
 func run() error {
+	for _, arg := range os.Args[1:] {
+		if arg == "--version" || arg == "-version" || arg == "-v" || strings.HasPrefix(arg, "--version=") {
+			fmt.Println("tapbox " + version)
+			return nil
+		}
+	}
+
 	cfg, err := config.Parse(os.Args[1:])
 	if err != nil {
 		return fmt.Errorf("parsing config: %w", err)
