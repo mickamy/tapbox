@@ -100,6 +100,9 @@ func (h *Hub) broadcast(span *trace.Span) {
 	}
 
 	t := h.store.GetTrace(span.TraceID)
+	if t == nil {
+		return
+	}
 	traceMsg, err := json.Marshal(sseMessage{Type: "trace", Data: t})
 	if err != nil {
 		log.Printf("sse marshal trace: %v", err)
