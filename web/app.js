@@ -286,17 +286,17 @@
     }
 
     function renderSpanDetail(s) {
-        let html = `<h3>${kindName(s.kind).toUpperCase()} Span</h3>`;
-        html += field("Span ID", s.span_id);
-        html += field("Parent ID", s.parent_id || "(root)");
-        html += field("Duration", formatDuration(s.duration_ms));
+        let html = `<h3>${escapeHtml(kindName(s.kind).toUpperCase())} Span</h3>`;
+        html += field("Span ID", escapeHtml(s.span_id));
+        html += field("Parent ID", escapeHtml(s.parent_id || "(root)"));
+        html += field("Duration", escapeHtml(formatDuration(s.duration_ms)));
         html += field("Status", s.status === "error" ? '<span class="status-error">error</span>' : '<span class="status-ok">ok</span>');
 
         if (s.kind === "http") {
             // HTTP
-            html += field("Method", s.http_method);
-            html += field("Path", s.http_path);
-            html += field("Status Code", s.http_status_code);
+            html += field("Method", escapeHtml(s.http_method));
+            html += field("Path", escapeHtml(s.http_path));
+            html += field("Status Code", escapeHtml(s.http_status_code));
             if (s.http_headers) {
                 html += field("Headers", `<pre>${escapeHtml(JSON.stringify(s.http_headers, null, 2))}</pre>`);
             }
@@ -308,12 +308,12 @@
             }
         } else if (s.kind === "connect") {
             // Connect RPC
-            html += field("Service", s.connect_service);
-            html += field("Method", s.connect_method);
-            html += field("Content-Type", s.connect_content_type);
-            html += field("HTTP Status", s.connect_http_status);
+            html += field("Service", escapeHtml(s.connect_service));
+            html += field("Method", escapeHtml(s.connect_method));
+            html += field("Content-Type", escapeHtml(s.connect_content_type));
+            html += field("HTTP Status", escapeHtml(s.connect_http_status));
             if (s.connect_is_streaming) html += field("Streaming", "yes");
-            if (s.connect_timeout_ms) html += field("Timeout", s.connect_timeout_ms + "ms");
+            if (s.connect_timeout_ms) html += field("Timeout", escapeHtml(s.connect_timeout_ms) + "ms");
             if (s.connect_error_code) html += field("Error Code", `<span class="status-error">${escapeHtml(s.connect_error_code)}</span>`);
             if (s.connect_error_message) html += field("Error Message", `<span class="status-error">${escapeHtml(s.connect_error_message)}</span>`);
             if (s.connect_headers) {
@@ -327,22 +327,22 @@
             }
         } else if (s.kind === "grpc") {
             // gRPC
-            html += field("Service", s.grpc_service);
-            html += field("Method", s.grpc_method);
-            html += field("Code", s.grpc_code);
+            html += field("Service", escapeHtml(s.grpc_service));
+            html += field("Method", escapeHtml(s.grpc_method));
+            html += field("Code", escapeHtml(s.grpc_code));
             if (s.grpc_metadata) {
                 html += field("Metadata", `<pre>${escapeHtml(JSON.stringify(s.grpc_metadata, null, 2))}</pre>`);
             }
             if (s.grpc_request_body) {
-                html += field("Request (hex)", `<pre>${s.grpc_request_body}</pre>`);
+                html += field("Request (hex)", `<pre>${escapeHtml(s.grpc_request_body)}</pre>`);
             }
             if (s.grpc_response_body) {
-                html += field("Response (hex)", `<pre>${s.grpc_response_body}</pre>`);
+                html += field("Response (hex)", `<pre>${escapeHtml(s.grpc_response_body)}</pre>`);
             }
         } else if (s.kind === "sql") {
             // SQL
             html += field("Query", `<pre>${escapeHtml(s.sql_query)}</pre>`);
-            if (s.sql_row_count) html += field("Rows", s.sql_row_count);
+            if (s.sql_row_count) html += field("Rows", escapeHtml(s.sql_row_count));
             if (s.sql_error) html += field("Error", `<span class="status-error">${escapeHtml(s.sql_error)}</span>`);
             if (s.sql_query) {
                 html += `<div class="explain-buttons">`;
