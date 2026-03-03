@@ -204,6 +204,7 @@ func captureBody(rc io.ReadCloser, maxCapture int) (captured []byte, body io.Rea
 // readCloser wraps an io.Reader with a custom Close function.
 type readCloser struct {
 	io.Reader
+
 	close func() error
 }
 

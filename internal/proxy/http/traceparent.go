@@ -1,6 +1,7 @@
 package http
 
 import (
+	"encoding/hex"
 	"fmt"
 	"strings"
 
@@ -26,7 +27,23 @@ func parseTraceparent(header string) (traceContext, bool) {
 	if len(traceID) != 32 || len(spanID) != 16 {
 		return traceContext{}, false
 	}
+	if !isLowerHex(traceID) || !isLowerHex(spanID) {
+		return traceContext{}, false
+	}
+	// W3C spec: all-zero trace-id and parent-id are invalid.
+	if traceID == "00000000000000000000000000000000" || spanID == "0000000000000000" {
+		return traceContext{}, false
+	}
 	return traceContext{TraceID: traceID, SpanID: spanID}, true
+}
+
+// isLowerHex returns true if s is valid lowercase hexadecimal.
+func isLowerHex(s string) bool {
+	_, err := hex.DecodeString(s)
+	if err != nil {
+		return false
+	}
+	return strings.ToLower(s) == s
 }
 
 // formatTraceparent creates a W3C traceparent header value.
