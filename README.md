@@ -41,30 +41,30 @@ make install # or `make build` to just build the binary in bin/
 ## Quick start
 
 ```sh
-tapbox --http-target localhost:3000
+tapbox --http-target http://localhost:3000
 ```
 
 Open [http://localhost:3080](http://localhost:3080) to view traces.
 
-Requests to the proxy at `:8080` are forwarded to your upstream at `localhost:3000`, and every span appears in the Web UI.
+Requests to the proxy at `:8080` are forwarded to your upstream at `http://localhost:3000`, and every span appears in the Web UI.
 
 ## Configuration
 
 All flags can also be set in a `.tapbox.yaml` file (auto-loaded from the current directory, if present).
 
-| Flag              | Default         | Description                                     |
-|-------------------|-----------------|-------------------------------------------------|
-| `--http-target`   | *(required)*    | Upstream HTTP server                            |
-| `--http-listen`   | `:8080`         | HTTP proxy listen address                       |
-| `--grpc-target`   | *(disabled)*    | Upstream gRPC server                            |
-| `--grpc-listen`   | `:9090`         | gRPC proxy listen address                       |
-| `--sql-target`    | *(disabled)*    | Upstream PostgreSQL server                      |
-| `--sql-listen`    | `:5433`         | SQL proxy listen address                        |
-| `--ui-listen`     | `:3080`         | Web UI listen address                           |
-| `--max-body-size` | `65536` (64 KB) | Max request/response body capture size in bytes |
-| `--max-traces`    | `1000`          | Max traces to keep in memory                    |
-| `--explain-dsn`   | *(sql-target)*  | PostgreSQL DSN for EXPLAIN queries              |
-| `--config`        | `.tapbox.yaml` (if present) | Path to YAML config file              |
+| Flag              | Default                     | Description                                     |
+|-------------------|-----------------------------|-------------------------------------------------|
+| `--http-target`   | *(required)*                | Upstream HTTP server                            |
+| `--http-listen`   | `:8080`                     | HTTP proxy listen address                       |
+| `--grpc-target`   | *(disabled)*                | Upstream gRPC server                            |
+| `--grpc-listen`   | `:9090`                     | gRPC proxy listen address                       |
+| `--sql-target`    | *(disabled)*                | Upstream PostgreSQL server                      |
+| `--sql-listen`    | `:5433`                     | SQL proxy listen address                        |
+| `--ui-listen`     | `:3080`                     | Web UI listen address                           |
+| `--max-body-size` | `65536` (64 KB)             | Max request/response body capture size in bytes |
+| `--max-traces`    | `1000`                      | Max traces to keep in memory                    |
+| `--explain-dsn`   | *(sql-target)*              | PostgreSQL DSN for EXPLAIN queries              |
+| `--config`        | `.tapbox.yaml` (if present) | Path to YAML config file                        |
 
 ## Architecture
 
