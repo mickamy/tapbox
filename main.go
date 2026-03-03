@@ -40,7 +40,7 @@ func main() {
 
 func run() error {
 	for _, arg := range os.Args[1:] {
-		if strings.HasPrefix(arg, "--version") || strings.HasPrefix(arg, "-version") || arg == "-v" {
+		if arg == "--version" || arg == "-version" || arg == "-v" || strings.HasPrefix(arg, "--version=") {
 			fmt.Println("tapbox " + version)
 			return nil
 		}
