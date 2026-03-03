@@ -3,6 +3,7 @@ package trace
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"time"
 )
@@ -31,6 +32,30 @@ func (k SpanKind) String() string {
 	}
 }
 
+func (k SpanKind) MarshalJSON() ([]byte, error) {
+	return json.Marshal(k.String())
+}
+
+func (k *SpanKind) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	switch s {
+	case "http":
+		*k = SpanHTTP
+	case "connect":
+		*k = SpanConnect
+	case "grpc":
+		*k = SpanGRPC
+	case "sql":
+		*k = SpanSQL
+	default:
+		return fmt.Errorf("unknown span kind: %q", s)
+	}
+	return nil
+}
+
 type SpanStatus int
 
 const (
@@ -43,6 +68,26 @@ func (s SpanStatus) String() string {
 		return "error"
 	}
 	return "ok"
+}
+
+func (s SpanStatus) MarshalJSON() ([]byte, error) {
+	return json.Marshal(s.String())
+}
+
+func (s *SpanStatus) UnmarshalJSON(data []byte) error {
+	var str string
+	if err := json.Unmarshal(data, &str); err != nil {
+		return err
+	}
+	switch str {
+	case "ok":
+		*s = StatusOK
+	case "error":
+		*s = StatusError
+	default:
+		return fmt.Errorf("unknown span status: %q", str)
+	}
+	return nil
 }
 
 type Span struct {

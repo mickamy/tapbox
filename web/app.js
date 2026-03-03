@@ -83,7 +83,7 @@
                 const method = root ? rootMethod(root) : "";
                 const path = root ? rootPath(root) : "";
                 const status = root ? rootStatus(root) : "";
-                const statusClass = root && root.status === 1 ? "status-error" : "status-ok";
+                const statusClass = root && root.status === "error" ? "status-error" : "status-ok";
                 const methodClass = `method-${method.toLowerCase()}`;
                 const spanCount = t.spans ? t.spans.length : 0;
                 const kinds = t.spans
@@ -173,7 +173,7 @@
                 const offset = ((spanStart - traceStart) / traceDuration) * 100;
                 const width = Math.max((s.duration_ms / traceDuration) * 100, 0.5);
                 const kindClass = `kind-${kindName(s.kind)}`;
-                const statusClass = s.status === 1 ? "status-error" : "";
+                const statusClass = s.status === "error" ? "status-error" : "";
                 const selClass = s.span_id === selectedSpanID ? "selected" : "";
                 return `<div class="timeline-bar-container">
           <div class="timeline-bar ${kindClass} ${statusClass} ${selClass}"
@@ -264,7 +264,7 @@
                 const s = n.span;
                 const selClass = s.span_id === selectedSpanID ? "selected" : "";
                 const kindBadge = `<span class="badge badge-${kindName(s.kind)}">${kindName(s.kind)}</span>`;
-                const statusClass = s.status === 1 ? "status-error" : "";
+                const statusClass = s.status === "error" ? "status-error" : "";
                 const indent = '<span class="indent"></span>'.repeat(depth);
                 const name = escapeHtml(s.name || "");
                 return `<div class="span-tree-item ${selClass}" data-span-id="${s.span_id}">
@@ -279,9 +279,9 @@
         html += field("Span ID", s.span_id);
         html += field("Parent ID", s.parent_id || "(root)");
         html += field("Duration", formatDuration(s.duration_ms));
-        html += field("Status", s.status === 1 ? '<span class="status-error">error</span>' : '<span class="status-ok">ok</span>');
+        html += field("Status", s.status === "error" ? '<span class="status-error">error</span>' : '<span class="status-ok">ok</span>');
 
-        if (s.kind === 0) {
+        if (s.kind === "http") {
             // HTTP
             html += field("Method", s.http_method);
             html += field("Path", s.http_path);
@@ -295,32 +295,7 @@
             if (s.http_response_body) {
                 html += field("Response Body", `<pre>${escapeHtml(formatBody(s.http_response_body))}</pre>`);
             }
-        } else if (s.kind === 1) {
-            // gRPC
-            html += field("Service", s.grpc_service);
-            html += field("Method", s.grpc_method);
-            html += field("Code", s.grpc_code);
-            if (s.grpc_metadata) {
-                html += field("Metadata", `<pre>${escapeHtml(JSON.stringify(s.grpc_metadata, null, 2))}</pre>`);
-            }
-            if (s.grpc_request_body) {
-                html += field("Request (hex)", `<pre>${s.grpc_request_body}</pre>`);
-            }
-            if (s.grpc_response_body) {
-                html += field("Response (hex)", `<pre>${s.grpc_response_body}</pre>`);
-            }
-        } else if (s.kind === 2) {
-            // SQL
-            html += field("Query", `<pre>${escapeHtml(s.sql_query)}</pre>`);
-            if (s.sql_row_count) html += field("Rows", s.sql_row_count);
-            if (s.sql_error) html += field("Error", `<span class="status-error">${escapeHtml(s.sql_error)}</span>`);
-            if (s.sql_query) {
-                html += `<div class="explain-buttons">`;
-                html += `<button class="explain-btn" id="explain-btn" data-query="${escapeAttr(s.sql_query)}">EXPLAIN</button>`;
-                html += `<button class="explain-btn" id="explain-analyze-btn" data-query="${escapeAttr(s.sql_query)}">EXPLAIN ANALYZE</button>`;
-                html += `</div>`;
-            }
-        } else if (s.kind === 3) {
+        } else if (s.kind === "connect") {
             // Connect RPC
             html += field("Service", s.connect_service);
             html += field("Method", s.connect_method);
@@ -339,6 +314,31 @@
             if (s.connect_response_body) {
                 html += field("Response Body", `<pre>${escapeHtml(formatBody(s.connect_response_body))}</pre>`);
             }
+        } else if (s.kind === "grpc") {
+            // gRPC
+            html += field("Service", s.grpc_service);
+            html += field("Method", s.grpc_method);
+            html += field("Code", s.grpc_code);
+            if (s.grpc_metadata) {
+                html += field("Metadata", `<pre>${escapeHtml(JSON.stringify(s.grpc_metadata, null, 2))}</pre>`);
+            }
+            if (s.grpc_request_body) {
+                html += field("Request (hex)", `<pre>${s.grpc_request_body}</pre>`);
+            }
+            if (s.grpc_response_body) {
+                html += field("Response (hex)", `<pre>${s.grpc_response_body}</pre>`);
+            }
+        } else if (s.kind === "sql") {
+            // SQL
+            html += field("Query", `<pre>${escapeHtml(s.sql_query)}</pre>`);
+            if (s.sql_row_count) html += field("Rows", s.sql_row_count);
+            if (s.sql_error) html += field("Error", `<span class="status-error">${escapeHtml(s.sql_error)}</span>`);
+            if (s.sql_query) {
+                html += `<div class="explain-buttons">`;
+                html += `<button class="explain-btn" id="explain-btn" data-query="${escapeAttr(s.sql_query)}">EXPLAIN</button>`;
+                html += `<button class="explain-btn" id="explain-analyze-btn" data-query="${escapeAttr(s.sql_query)}">EXPLAIN ANALYZE</button>`;
+                html += `</div>`;
+            }
         }
 
         return html;
@@ -352,23 +352,22 @@
     }
 
     function rootMethod(root) {
-        if (root.kind === 3) return root.connect_method || "";
+        if (root.kind === "connect") return root.connect_method || "";
         return root.http_method || root.grpc_method || "";
     }
 
     function rootPath(root) {
-        if (root.kind === 3) return root.connect_service ? root.connect_service + "/" + (root.connect_method || "") : root.name || "";
+        if (root.kind === "connect") return root.connect_service ? root.connect_service + "/" + (root.connect_method || "") : root.name || "";
         return root.http_path || root.name || "";
     }
 
     function rootStatus(root) {
-        if (root.kind === 3) return root.connect_http_status || "";
+        if (root.kind === "connect") return root.connect_http_status || "";
         return root.http_status_code || root.grpc_code || "";
     }
 
     function kindName(kind) {
-        const names = ["http", "grpc", "sql", "connect"];
-        return names[kind] || "unknown";
+        return kind || "unknown";
     }
 
     function formatDuration(ms) {
