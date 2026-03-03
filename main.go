@@ -25,7 +25,10 @@ import (
 
 var version = "dev"
 
-const readHeaderTimeout = 10 * time.Second
+const (
+	readHeaderTimeout = 10 * time.Second
+	shutdownTimeout   = 5 * time.Second
+)
 
 func main() {
 	if err := run(); err != nil {
@@ -66,8 +69,10 @@ func run() error {
 		}
 		go func() {
 			<-ctx.Done()
-			if closeErr := srv.Close(); closeErr != nil {
-				log.Printf("http proxy close: %v", closeErr)
+			shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), shutdownTimeout)
+			defer shutdownCancel()
+			if closeErr := srv.Shutdown(shutdownCtx); closeErr != nil {
+				log.Printf("http proxy shutdown: %v", closeErr)
 			}
 		}()
 		log.Printf("HTTP proxy listening on %s -> %s", cfg.HTTPListen, cfg.HTTPTarget)
@@ -130,8 +135,10 @@ func run() error {
 		}
 		go func() {
 			<-ctx.Done()
-			if closeErr := srv.Close(); closeErr != nil {
-				log.Printf("ui server close: %v", closeErr)
+			shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), shutdownTimeout)
+			defer shutdownCancel()
+			if closeErr := srv.Shutdown(shutdownCtx); closeErr != nil {
+				log.Printf("ui server shutdown: %v", closeErr)
 			}
 		}()
 		log.Printf("UI available at http://localhost%s", cfg.UIListen)
