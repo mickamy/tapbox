@@ -1,0 +1,16 @@
+{
+  "name": "tapbox-demo",
+  "private": true,
+  "scripts": {
+    "record": "tsx record.ts",
+    "convert": "ffmpeg -y -i output/demo.webm -vf \"fps=12,scale=1280:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=128[p];[s1][p]paletteuse=dither=bayer:bayer_scale=3\" -loop 0 output/demo.gif"
+  },
+  "dependencies": {
+    "playwright": "^1.52.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.3"
+  }
+}

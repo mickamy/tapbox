@@ -2,7 +2,7 @@ BUILD_DIR = bin
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS = -ldflags "-X main.version=$(VERSION)"
 
-.PHONY: all build build-tap build-tapd install uninstall clean test lint
+.PHONY: all build build-tap build-tapd install uninstall clean test lint demo
 
 all: build
 
@@ -44,3 +44,10 @@ lint:
 	}
 	golangci-lint run
 	cd example && golangci-lint run
+
+demo:
+	rm -rf ./demo/output
+	cd demo && npm install && npx playwright install chromium && npx tsx record.ts
+	cd demo && ffmpeg -y -i output/demo.webm \
+		-vf "fps=12,scale=1280:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=128[p];[s1][p]paletteuse=dither=bayer:bayer_scale=3" \
+		-loop 0 output/demo.gif
