@@ -218,9 +218,8 @@ func extractTraceContext(stream grpc.ServerStream) (traceID, parentID, spanID st
 	if len(vals) == 0 {
 		return trace.NewTraceID(), "", spanID
 	}
-	parts := strings.Split(vals[0], "-")
-	if len(parts) >= 4 && len(parts[1]) == 32 && len(parts[2]) == 16 {
-		return parts[1], parts[2], spanID
+	if tc, ok := trace.ParseTraceparent(vals[0]); ok {
+		return tc.TraceID, tc.SpanID, spanID
 	}
 	return trace.NewTraceID(), "", spanID
 }
