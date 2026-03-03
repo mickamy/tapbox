@@ -114,7 +114,7 @@ func (p *Proxy) handleConn(clientConn net.Conn) {
 				parentID = sc.ParentID
 				queryText = StripSQLComment(ev.Query)
 			case CommentInvalid:
-				traceID = trace.NewTraceID()
+				traceID, parentID = p.correlator.Correlate()
 				queryText = StripSQLComment(ev.Query)
 			case CommentAbsent:
 				traceID, parentID = p.correlator.Correlate()
