@@ -57,9 +57,10 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Inject traceparent into the outgoing request so the upstream can propagate it.
 	r.Header.Set(traceparentHeader, formatTraceparent(traceID, spanID))
 
-	reqBody := captureBody(r.Body, p.maxBodySize)
-	r.Body = io.NopCloser(bytes.NewReader(reqBody))
-	r.ContentLength = int64(len(reqBody))
+	fullBody := readBody(r.Body)
+	r.Body = io.NopCloser(bytes.NewReader(fullBody))
+	r.ContentLength = int64(len(fullBody))
+	reqBody := truncate(fullBody, p.maxBodySize)
 
 	rec := &responseRecorder{
 		ResponseWriter: w,
@@ -166,20 +167,29 @@ func (p *Proxy) submitConnectSpan(
 	p.collector.Submit(span)
 }
 
-func captureBody(rc io.ReadCloser, maxSize int) []byte {
+// readBody reads the entire request body and closes it.
+func readBody(rc io.ReadCloser) []byte {
 	if rc == nil {
 		return nil
 	}
 	defer func() {
 		if err := rc.Close(); err != nil {
-			log.Printf("captureBody: close error: %v", err)
+			log.Printf("readBody: close error: %v", err)
 		}
 	}()
-	buf := &bytes.Buffer{}
-	if _, err := io.Copy(buf, io.LimitReader(rc, int64(maxSize))); err != nil {
+	b, err := io.ReadAll(rc)
+	if err != nil {
 		return nil
 	}
-	return buf.Bytes()
+	return b
+}
+
+// truncate returns at most maxSize bytes from b.
+func truncate(b []byte, maxSize int) []byte {
+	if len(b) <= maxSize {
+		return b
+	}
+	return b[:maxSize]
 }
 
 type responseRecorder struct {
