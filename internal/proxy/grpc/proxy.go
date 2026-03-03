@@ -66,11 +66,10 @@ func (p *Proxy) UnknownHandler() grpc.StreamHandler {
 		}
 
 		md, _ := metadata.FromIncomingContext(serverStream.Context())
-		ctx := metadata.NewOutgoingContext(serverStream.Context(), md.Copy())
-
-		// Forward the traceparent to upstream.
-		ctx = metadata.AppendToOutgoingContext(ctx, "traceparent",
-			fmt.Sprintf("00-%s-%s-01", traceID, spanID))
+		outMD := md.Copy()
+		// Replace traceparent instead of appending to avoid duplicate headers.
+		outMD.Set("traceparent", trace.FormatTraceparent(traceID, spanID))
+		ctx := metadata.NewOutgoingContext(serverStream.Context(), outMD)
 
 		clientStream, err := p.conn.NewStream(ctx, &grpc.StreamDesc{
 			ServerStreams: true,
