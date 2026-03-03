@@ -171,7 +171,7 @@ func proxyClientToServer(client, server RawConn, connID uint64, pending chan<- p
 			if writeErr := writePGMessage(server, msgType, payload); writeErr != nil {
 				return fmt.Errorf("writing query to server: %w", writeErr)
 			}
-			pending <- pendingQuery{query: query, start: start, connID: connID}
+			trySend(pending, pendingQuery{query: query, start: start, connID: connID})
 			continue
 		case 'P': // Parse (extended query)
 			name := extractString(payload)
@@ -180,14 +180,14 @@ func proxyClientToServer(client, server RawConn, connID uint64, pending chan<- p
 				preparedStmts[name] = query
 			}
 			if query != "" {
-				pending <- pendingQuery{query: query, start: time.Now(), connID: connID}
+				trySend(pending, pendingQuery{query: query, start: time.Now(), connID: connID})
 				parseSeen = true
 			}
 		case 'B': // Bind — may reference a cached prepared statement
 			if !parseSeen {
 				stmtName := extractBindStatementName(payload)
 				if query, ok := preparedStmts[stmtName]; ok {
-					pending <- pendingQuery{query: query, start: time.Now(), connID: connID}
+					trySend(pending, pendingQuery{query: query, start: time.Now(), connID: connID})
 				}
 			}
 		case 'S': // Sync — marks end of an extended-query message group
@@ -279,6 +279,15 @@ func writePGMessage(conn RawConn, msgType byte, payload []byte) error {
 		}
 	}
 	return nil
+}
+
+// trySend sends pq on pending without blocking. If the channel buffer is
+// full the query event is dropped to avoid deadlocking the proxy.
+func trySend(pending chan<- pendingQuery, pq pendingQuery) {
+	select {
+	case pending <- pq:
+	default:
+	}
 }
 
 func extractString(data []byte) string {
