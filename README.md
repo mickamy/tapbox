@@ -39,7 +39,7 @@ FROM alpine:3 AS tapbox
 ARG TAPBOX_VERSION=0.0.1
 ARG TARGETARCH
 ADD "https://github.com/mickamy/tapbox/releases/download/v${TAPBOX_VERSION}/tapbox_${TAPBOX_VERSION}_linux_${TARGETARCH}.tar.gz" /tmp/tapbox.tar.gz
-RUN tar xz -C /usr/local/bin tapbox < /tmp/tapbox.tar.gz
+RUN tar xzf /tmp/tapbox.tar.gz -C /usr/local/bin tapbox
 
 FROM alpine:3
 COPY --from=tapbox /usr/local/bin/tapbox /usr/local/bin/tapbox
