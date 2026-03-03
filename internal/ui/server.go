@@ -48,7 +48,10 @@ func NewServer(store trace.Store, explainDSN string) *Server {
 	mux.HandleFunc("GET /events", hub.HandleSSE)
 
 	// Static files
-	staticFS, _ := fs.Sub(web.Static, ".")
+	staticFS, err := fs.Sub(web.Static, ".")
+	if err != nil {
+		panic(fmt.Sprintf("embedded static files: %v", err))
+	}
 	mux.Handle("GET /", http.FileServer(http.FS(staticFS)))
 
 	return &Server{handler: mux, hub: hub}
