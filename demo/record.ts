@@ -98,9 +98,16 @@ async function main() {
   await browser.close();
 
   // Rename the video file to demo.webm
-  const files = fs.readdirSync(OUTPUT_DIR).filter((f) => f.endsWith(".webm"));
-  if (files.length > 0) {
-    const src = path.join(OUTPUT_DIR, files[files.length - 1]);
+  const webmFiles = fs
+    .readdirSync(OUTPUT_DIR)
+    .filter((f) => f.endsWith(".webm"))
+    .map((f) => ({
+      name: f,
+      time: fs.statSync(path.join(OUTPUT_DIR, f)).mtimeMs,
+    }))
+    .sort((a, b) => a.time - b.time);
+  if (webmFiles.length > 0) {
+    const src = path.join(OUTPUT_DIR, webmFiles[webmFiles.length - 1].name);
     const dst = path.join(OUTPUT_DIR, "demo.webm");
     if (src !== dst) {
       fs.renameSync(src, dst);

@@ -47,7 +47,8 @@ lint:
 
 demo:
 	rm -rf ./demo/output
-	cd demo && npm install && npx playwright install chromium && npx tsx record.ts
+	cd demo && npm ci && npx playwright install chromium && npx tsx record.ts
 	cd demo && ffmpeg -y -i output/demo.webm \
 		-vf "fps=12,scale=1280:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=128[p];[s1][p]paletteuse=dither=bayer:bayer_scale=3" \
 		-loop 0 output/demo.gif
+	cp ./demo/output/demo.gif ./docs/demo.gif
