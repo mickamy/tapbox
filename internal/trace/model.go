@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"time"
 )
 
@@ -181,9 +182,7 @@ func cloneMap(m map[string]string) map[string]string {
 		return nil
 	}
 	cp := make(map[string]string, len(m))
-	for k, v := range m {
-		cp[k] = v
-	}
+	maps.Copy(cp, m)
 	return cp
 }
 

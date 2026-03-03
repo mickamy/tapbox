@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -57,10 +56,8 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Inject traceparent into the outgoing request so the upstream can propagate it.
 	r.Header.Set(traceparentHeader, formatTraceparent(traceID, spanID))
 
-	fullBody := readBody(r.Body)
-	r.Body = io.NopCloser(bytes.NewReader(fullBody))
-	r.ContentLength = int64(len(fullBody))
-	reqBody := truncate(fullBody, p.maxBodySize)
+	var reqBody []byte
+	reqBody, r.Body, r.ContentLength = captureBody(r.Body, p.maxBodySize)
 
 	rec := &responseRecorder{
 		ResponseWriter: w,
@@ -167,29 +164,36 @@ func (p *Proxy) submitConnectSpan(
 	p.collector.Submit(span)
 }
 
-// readBody reads the entire request body and closes it.
-func readBody(rc io.ReadCloser) []byte {
+// captureBody reads up to maxCapture bytes for span capture and reconstructs
+// the request body so the full content (including any remainder beyond the
+// capture limit) is forwarded to the upstream server. This prevents unbounded
+// memory allocation from arbitrarily large request bodies.
+func captureBody(rc io.ReadCloser, maxCapture int) (captured []byte, body io.ReadCloser, contentLength int64) {
 	if rc == nil {
-		return nil
+		return nil, nil, 0
 	}
-	defer func() {
-		if err := rc.Close(); err != nil {
-			log.Printf("readBody: close error: %v", err)
-		}
-	}()
-	b, err := io.ReadAll(rc)
-	if err != nil {
-		return nil
-	}
-	return b
-}
 
-// truncate returns at most maxSize bytes from b.
-func truncate(b []byte, maxSize int) []byte {
-	if len(b) <= maxSize {
-		return b
+	head, err := io.ReadAll(io.LimitReader(rc, int64(maxCapture)))
+	if err != nil {
+		// On read error, return what we have and let upstream handle it.
+		_ = rc.Close()
+		return nil, io.NopCloser(bytes.NewReader(head)), int64(len(head))
 	}
-	return b[:maxSize]
+
+	// Check if there is more data beyond the capture limit.
+	// If so, concatenate captured bytes with the remaining stream.
+	var probe [1]byte
+	n, probeErr := rc.Read(probe[:])
+	if n == 0 || probeErr != nil {
+		// Body fits within maxCapture; no remainder.
+		_ = rc.Close()
+		return head, io.NopCloser(bytes.NewReader(head)), int64(len(head))
+	}
+
+	// Body exceeds maxCapture: stream the remainder without buffering it all.
+	remainder := io.MultiReader(bytes.NewReader(probe[:1]), rc)
+	combined := io.NopCloser(io.MultiReader(bytes.NewReader(head), remainder))
+	return head, combined, -1 // -1 = chunked / unknown length
 }
 
 type responseRecorder struct {
