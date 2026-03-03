@@ -21,6 +21,9 @@ type Proxy struct {
 	// traceID and spanID. This allows the caller (e.g. SQL correlator) to
 	// associate subsequent SQL queries with the active trace.
 	OnSpan func(traceID, spanID string)
+
+	// OnSpanEnd is called when an HTTP/Connect span completes.
+	OnSpanEnd func(traceID, spanID string)
 }
 
 func NewProxy(target string, collector *trace.Collector, maxBodySize int) (*Proxy, error) {
@@ -73,6 +76,10 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		p.submitConnectSpan(r, rec, traceID, parentID, spanID, start, duration, reqBody)
 	} else {
 		p.submitHTTPSpan(r, rec, traceID, parentID, spanID, start, duration, reqBody)
+	}
+
+	if p.OnSpanEnd != nil {
+		p.OnSpanEnd(traceID, spanID)
 	}
 }
 

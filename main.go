@@ -61,6 +61,9 @@ func run() error {
 	httpProxy.OnSpan = func(traceID, spanID string) {
 		correlator.SetActive(traceID, spanID)
 	}
+	httpProxy.OnSpanEnd = func(traceID, spanID string) {
+		correlator.ClearActive(traceID, spanID)
+	}
 
 	g.Go(func() error {
 		srv := &http.Server{
@@ -91,6 +94,9 @@ func run() error {
 		}
 		gp.OnSpan = func(traceID, spanID string) {
 			correlator.SetActive(traceID, spanID)
+		}
+		gp.OnSpanEnd = func(traceID, spanID string) {
+			correlator.ClearActive(traceID, spanID)
 		}
 		grpcServer := grpc.NewServer(grpc.UnknownServiceHandler(gp.UnknownHandler()))
 

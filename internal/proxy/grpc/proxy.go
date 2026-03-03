@@ -27,6 +27,9 @@ type Proxy struct {
 	// traceID and spanID. This allows the SQL correlator to associate
 	// subsequent SQL queries with the active gRPC span.
 	OnSpan func(traceID, spanID string)
+
+	// OnSpanEnd is called when a gRPC span completes.
+	OnSpanEnd func(traceID, spanID string)
 }
 
 func NewProxy(target string, collector *trace.Collector) (*Proxy, error) {
@@ -77,7 +80,11 @@ func (p *Proxy) UnknownHandler() grpc.StreamHandler {
 		}, fullMethod, grpc.ForceCodecV2(RawCodec{}))
 		if err != nil {
 			now := time.Now()
-			return p.submitSpanAt(traceID, parentID, spanID, service, method, nil, nil, md, now, now, err)
+			spanErr := p.submitSpanAt(traceID, parentID, spanID, service, method, nil, nil, md, now, now, err)
+			if p.OnSpanEnd != nil {
+				p.OnSpanEnd(traceID, spanID)
+			}
+			return spanErr
 		}
 
 		// Measure start right before relay begins, excluding setup overhead
@@ -151,7 +158,11 @@ func (p *Proxy) UnknownHandler() grpc.StreamHandler {
 			end = time.Now()
 		}
 
-		return p.submitSpanAt(traceID, parentID, spanID, service, method, reqBytes, respBytes, md, start, end, relayErr)
+		spanErr := p.submitSpanAt(traceID, parentID, spanID, service, method, reqBytes, respBytes, md, start, end, relayErr)
+		if p.OnSpanEnd != nil {
+			p.OnSpanEnd(traceID, spanID)
+		}
+		return spanErr
 	}
 }
 

@@ -38,7 +38,7 @@ func TestCorrelator_SetActiveAndCorrelate(t *testing.T) {
 	}
 }
 
-func TestCorrelator_OverwriteActive(t *testing.T) {
+func TestCorrelator_StackReturnsLatest(t *testing.T) {
 	t.Parallel()
 	_ = t.Context()
 
@@ -52,6 +52,43 @@ func TestCorrelator_OverwriteActive(t *testing.T) {
 	}
 	if parentID != "span2" {
 		t.Errorf("parentID = %q, want %q (latest)", parentID, "span2")
+	}
+}
+
+func TestCorrelator_ClearActiveRestoresPrevious(t *testing.T) {
+	t.Parallel()
+	_ = t.Context()
+
+	c := sql.NewCorrelator(0)
+	c.SetActive("trace1", "span1")
+	c.SetActive("trace2", "span2")
+
+	// Clear the latest; should fall back to trace1.
+	c.ClearActive("trace2", "span2")
+
+	traceID, parentID := c.Correlate()
+	if traceID != "trace1" {
+		t.Errorf("traceID = %q, want %q after clear", traceID, "trace1")
+	}
+	if parentID != "span1" {
+		t.Errorf("parentID = %q, want %q after clear", parentID, "span1")
+	}
+}
+
+func TestCorrelator_ClearActiveAll(t *testing.T) {
+	t.Parallel()
+	_ = t.Context()
+
+	c := sql.NewCorrelator(0)
+	c.SetActive("trace1", "span1")
+	c.ClearActive("trace1", "span1")
+
+	traceID, parentID := c.Correlate()
+	if len(traceID) != 32 {
+		t.Errorf("traceID length = %d, want 32 (new trace ID)", len(traceID))
+	}
+	if parentID != "" {
+		t.Errorf("parentID = %q, want empty after clearing all", parentID)
 	}
 }
 
