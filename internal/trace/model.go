@@ -163,6 +163,30 @@ func (t *Trace) RootSpan() *Span {
 	return nil
 }
 
+func (t *Trace) snapshot() *Trace {
+	cp := *t
+	cp.Spans = make([]*Span, len(t.Spans))
+	for i, s := range t.Spans {
+		clone := *s
+		clone.HTTPHeaders = cloneMap(s.HTTPHeaders)
+		clone.GRPCMetadata = cloneMap(s.GRPCMetadata)
+		clone.ConnectHeaders = cloneMap(s.ConnectHeaders)
+		cp.Spans[i] = &clone
+	}
+	return &cp
+}
+
+func cloneMap(m map[string]string) map[string]string {
+	if m == nil {
+		return nil
+	}
+	cp := make(map[string]string, len(m))
+	for k, v := range m {
+		cp[k] = v
+	}
+	return cp
+}
+
 func NewTraceID() string {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {

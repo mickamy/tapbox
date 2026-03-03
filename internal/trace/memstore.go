@@ -65,7 +65,11 @@ func (m *MemStore) Add(span *Span) {
 func (m *MemStore) GetTrace(traceID string) *Trace {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	return m.traces[traceID]
+	t, ok := m.traces[traceID]
+	if !ok {
+		return nil
+	}
+	return t.snapshot()
 }
 
 func (m *MemStore) ListTraces(offset, limit int) []*Trace {
@@ -97,7 +101,7 @@ func (m *MemStore) ListTraces(offset, limit int) []*Trace {
 	result := make([]*Trace, 0, len(ids))
 	for _, id := range ids {
 		if t, ok := m.traces[id]; ok {
-			result = append(result, t)
+			result = append(result, t.snapshot())
 		}
 	}
 	return result
