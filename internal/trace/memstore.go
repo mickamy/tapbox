@@ -51,7 +51,7 @@ func (m *MemStore) Add(span *Span) {
 	updateTraceTiming(t)
 
 	// Notify subscribers under lock to prevent sending on a channel that has
-	// been removed (and potentially closed) by Unsubscribe.
+	// been removed by Unsubscribe.
 	for ch := range m.subscribers {
 		select {
 		case ch <- span:
