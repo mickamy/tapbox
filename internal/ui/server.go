@@ -19,9 +19,11 @@ var (
 	errPGXPool  error
 )
 
-func getPGXPool(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
-	pgxPoolOnce.Do(func() {
-		pgxPoolInst, errPGXPool = pgxpool.New(ctx, dsn)
+func getPGXPool(_ context.Context, dsn string) (*pgxpool.Pool, error) {
+	// Use context.Background() so the pool is not tied to a request-scoped
+	// context. A cancelled request context would cache the error forever.
+	pgxPoolOnce.Do(func() { //nolint:contextcheck // long-lived context
+		pgxPoolInst, errPGXPool = pgxpool.New(context.Background(), dsn)
 	})
 	if errPGXPool != nil {
 		return nil, fmt.Errorf("creating pgx pool: %w", errPGXPool)
