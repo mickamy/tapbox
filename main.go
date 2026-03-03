@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -147,7 +148,11 @@ func run() error {
 				log.Printf("ui server shutdown: %v", closeErr)
 			}
 		}()
-		log.Printf("UI available at http://localhost%s", cfg.UIListen)
+		if strings.HasPrefix(cfg.UIListen, ":") {
+			log.Printf("UI available at http://localhost%s", cfg.UIListen)
+		} else {
+			log.Printf("UI available at http://%s", cfg.UIListen)
+		}
 		if srvErr := srv.ListenAndServe(); srvErr != nil && !errors.Is(srvErr, http.ErrServerClosed) {
 			return fmt.Errorf("ui server: %w", srvErr)
 		}
