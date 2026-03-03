@@ -94,6 +94,12 @@ func (p *Proxy) handleConn(clientConn net.Conn) {
 		}
 	}()
 
+	// Set a deadline for the startup/auth phase to prevent hanging on
+	// unresponsive servers. HandleConnection resets it after auth completes.
+	authTimeout := 30 * time.Second
+	_ = clientConn.SetDeadline(time.Now().Add(authTimeout))
+	_ = serverConn.SetDeadline(time.Now().Add(authTimeout))
+
 	p.protocol.HandleConnection(
 		netConnAdapter{conn: clientConn},
 		netConnAdapter{conn: serverConn},
@@ -138,6 +144,10 @@ func (n netConnAdapter) Close() error {
 		return fmt.Errorf("closing connection: %w", err)
 	}
 	return nil
+}
+
+func (n netConnAdapter) SetDeadline(t time.Time) error {
+	return n.conn.SetDeadline(t) //nolint:wrapcheck // pass-through
 }
 
 func truncateQuery(q string, maxLen int) string {

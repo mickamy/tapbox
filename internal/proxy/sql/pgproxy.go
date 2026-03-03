@@ -26,6 +26,10 @@ func (PGProtocol) HandleConnection(clientConn, serverConn RawConn, connID uint64
 		return
 	}
 
+	// Clear auth-phase deadlines so the proxy phase is unbounded.
+	clearDeadline(clientConn)
+	clearDeadline(serverConn)
+
 	// Phase 2: Proxy messages, capturing queries.
 	// pending carries query info from client→server goroutine to server→client goroutine
 	// so that duration can be measured when ReadyForQuery arrives.
@@ -326,6 +330,18 @@ func extractParseQuery(data []byte) string {
 		return ""
 	}
 	return extractString(data[i:])
+}
+
+// deadliner is an optional interface for connections that support deadlines.
+type deadliner interface {
+	SetDeadline(t time.Time) error
+}
+
+// clearDeadline resets the deadline on conn if it supports it.
+func clearDeadline(conn RawConn) {
+	if d, ok := conn.(deadliner); ok {
+		_ = d.SetDeadline(time.Time{})
+	}
 }
 
 // connReader adapts RawConn to io.Reader.
