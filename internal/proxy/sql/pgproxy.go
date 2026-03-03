@@ -222,7 +222,11 @@ func readPGMessage(conn RawConn) (byte, []byte, error) {
 	msgType := header[0]
 	length := int(binary.BigEndian.Uint32(header[1:5]))
 	if length < 4 {
-		return msgType, nil, nil
+		return 0, nil, fmt.Errorf("invalid pg message length %d (type %c)", length, rune(msgType))
+	}
+	const maxMessageSize = 64 * 1024 * 1024 // 64 MB
+	if length > maxMessageSize {
+		return 0, nil, fmt.Errorf("pg message too large: %d bytes (type %c)", length, rune(msgType))
 	}
 	payload := make([]byte, length-4)
 	if _, err := io.ReadFull(readerFromConn(conn), payload); err != nil {
