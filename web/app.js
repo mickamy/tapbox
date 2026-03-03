@@ -49,7 +49,6 @@
         const resp = await fetch("/api/traces?limit=100");
         traces = await resp.json();
         if (!traces) traces = [];
-        traces.reverse();
         renderList();
     }
 
