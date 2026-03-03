@@ -50,7 +50,7 @@ Requests to the proxy at `:8080` are forwarded to your upstream at `localhost:30
 
 ## Configuration
 
-All flags can also be set in a `.tapbox.yaml` file (auto-loaded from the current directory).
+All flags can also be set in a `.tapbox.yaml` file (auto-loaded from the current directory, if present).
 
 | Flag              | Default         | Description                                     |
 |-------------------|-----------------|-------------------------------------------------|
@@ -64,7 +64,7 @@ All flags can also be set in a `.tapbox.yaml` file (auto-loaded from the current
 | `--max-body-size` | `65536` (64 KB) | Max request/response body capture size in bytes |
 | `--max-traces`    | `1000`          | Max traces to keep in memory                    |
 | `--explain-dsn`   | *(sql-target)*  | PostgreSQL DSN for EXPLAIN queries              |
-| `--config`        | `.tapbox.yaml`  | Path to YAML config file                        |
+| `--config`        | `.tapbox.yaml` (if present) | Path to YAML config file              |
 
 ## Architecture
 
