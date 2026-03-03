@@ -42,13 +42,13 @@ func (a *API) HandleListTraces(w http.ResponseWriter, r *http.Request) {
 func (a *API) HandleGetTrace(w http.ResponseWriter, r *http.Request) {
 	traceID := r.PathValue("traceID")
 	if traceID == "" {
-		http.Error(w, "trace ID required", http.StatusBadRequest)
+		writeJSONError(w, http.StatusBadRequest, "trace ID required")
 		return
 	}
 
 	t := a.store.GetTrace(traceID)
 	if t == nil {
-		http.Error(w, "trace not found", http.StatusNotFound)
+		writeJSONError(w, http.StatusNotFound, "trace not found")
 		return
 	}
 
@@ -59,13 +59,13 @@ func (a *API) HandleGetSpan(w http.ResponseWriter, r *http.Request) {
 	traceID := r.PathValue("traceID")
 	spanID := r.PathValue("spanID")
 	if traceID == "" || spanID == "" {
-		http.Error(w, "trace ID and span ID required", http.StatusBadRequest)
+		writeJSONError(w, http.StatusBadRequest, "trace ID and span ID required")
 		return
 	}
 
 	t := a.store.GetTrace(traceID)
 	if t == nil {
-		http.Error(w, "trace not found", http.StatusNotFound)
+		writeJSONError(w, http.StatusNotFound, "trace not found")
 		return
 	}
 
@@ -76,7 +76,7 @@ func (a *API) HandleGetSpan(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	http.Error(w, "span not found", http.StatusNotFound)
+	writeJSONError(w, http.StatusNotFound, "span not found")
 }
 
 type explainRequest struct {
