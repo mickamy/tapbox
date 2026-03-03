@@ -49,63 +49,71 @@ func (PGProtocol) HandleConnection(clientConn, serverConn RawConn, connID uint64
 }
 
 func relayStartup(client, server RawConn) bool {
-	// Read startup message length (first 4 bytes).
-	header := make([]byte, 4)
-	if _, err := io.ReadFull(readerFromConn(client), header); err != nil {
-		return false
-	}
-	length := int(binary.BigEndian.Uint32(header))
-	if length < 4 || length > 10240 {
-		return false
-	}
-
-	// Read rest of startup message.
-	msg := make([]byte, length)
-	copy(msg, header)
-	if _, err := io.ReadFull(readerFromConn(client), msg[4:]); err != nil {
-		return false
-	}
-
-	// Check for SSLRequest (protocol version 80877103).
-	if length == 8 {
-		code := binary.BigEndian.Uint32(msg[4:8])
-		if code == 80877103 {
-			// Forward SSL request to server.
-			if _, err := server.Write(msg); err != nil {
-				return false
-			}
-			// Read server response (single byte: 'N' for no SSL, 'S' for SSL).
-			resp := make([]byte, 1)
-			if _, err := io.ReadFull(readerFromConn(server), resp); err != nil {
-				return false
-			}
-			if _, err := client.Write(resp); err != nil {
-				return false
-			}
-
-			// If server doesn't support SSL, client should send real startup.
-			if resp[0] == 'N' {
-				return relayStartup(client, server)
-			}
-			// If SSL, we can't intercept - just pipe through.
-			go func() {
-				if _, err := io.Copy(writerFromConn(server), readerFromConn(client)); err != nil {
-					log.Printf("pgproxy: SSL relay client->server error: %v", err)
-				}
-			}()
-			if _, err := io.Copy(writerFromConn(client), readerFromConn(server)); err != nil {
-				log.Printf("pgproxy: SSL relay server->client error: %v", err)
-			}
-			return false // SSL connection taken over by io.Copy.
+	// Loop to handle SSL negotiation retries. When the server rejects SSL,
+	// the client sends a new startup message, so we loop back to read it.
+	for {
+		// Read startup message length (first 4 bytes).
+		header := make([]byte, 4)
+		if _, err := io.ReadFull(readerFromConn(client), header); err != nil {
+			return false
 		}
-	}
+		length := int(binary.BigEndian.Uint32(header))
+		if length < 4 || length > 10240 {
+			return false
+		}
 
-	// Forward startup message to server.
-	if _, err := server.Write(msg); err != nil {
-		return false
-	}
+		// Read rest of startup message.
+		msg := make([]byte, length)
+		copy(msg, header)
+		if _, err := io.ReadFull(readerFromConn(client), msg[4:]); err != nil {
+			return false
+		}
 
-	// Relay auth messages until ReadyForQuery.
+		// Check for SSLRequest (protocol version 80877103).
+		if length == 8 {
+			code := binary.BigEndian.Uint32(msg[4:8])
+			if code == 80877103 {
+				// Forward SSL request to server.
+				if _, err := server.Write(msg); err != nil {
+					return false
+				}
+				// Read server response (single byte: 'N' for no SSL, 'S' for SSL).
+				resp := make([]byte, 1)
+				if _, err := io.ReadFull(readerFromConn(server), resp); err != nil {
+					return false
+				}
+				if _, err := client.Write(resp); err != nil {
+					return false
+				}
+
+				// If server doesn't support SSL, client should send real startup.
+				if resp[0] == 'N' {
+					continue
+				}
+				// If SSL, we can't intercept - just pipe through.
+				go func() {
+					if _, err := io.Copy(writerFromConn(server), readerFromConn(client)); err != nil {
+						log.Printf("pgproxy: SSL relay client->server error: %v", err)
+					}
+				}()
+				if _, err := io.Copy(writerFromConn(client), readerFromConn(server)); err != nil {
+					log.Printf("pgproxy: SSL relay server->client error: %v", err)
+				}
+				return false // SSL connection taken over by io.Copy.
+			}
+		}
+
+		// Non-SSL startup message: forward to server and proceed to auth.
+		if _, err := server.Write(msg); err != nil {
+			return false
+		}
+		return relayAuth(client, server)
+	}
+}
+
+// relayAuth relays authentication messages between client and server
+// until the server sends ReadyForQuery.
+func relayAuth(client, server RawConn) bool {
 	for {
 		msgType, payload, err := readPGMessage(server)
 		if err != nil {
