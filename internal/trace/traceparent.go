@@ -17,7 +17,7 @@ type TraceparentContext struct {
 // Format: version-traceID-spanID-flags (e.g. "00-abc...def-012...345-01")
 func ParseTraceparent(header string) (TraceparentContext, bool) {
 	parts := strings.Split(header, "-")
-	if len(parts) < 4 {
+	if len(parts) != 4 {
 		return TraceparentContext{}, false
 	}
 	traceID := parts[1]
