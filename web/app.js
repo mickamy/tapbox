@@ -3,7 +3,7 @@
 
     const app = document.getElementById("app");
     const detailPanel = document.getElementById("detail-panel");
-    const sseStatus = document.getElementById("ws-status");
+    const sseStatus = document.getElementById("sse-status");
     let currentTraceID = null;
     let selectedSpanID = null;
     let traces = [];
