@@ -122,19 +122,11 @@ type netConnAdapter struct {
 }
 
 func (n netConnAdapter) Read(b []byte) (int, error) {
-	nr, err := n.conn.Read(b)
-	if err != nil {
-		return nr, fmt.Errorf("reading from connection: %w", err)
-	}
-	return nr, nil
+	return n.conn.Read(b) //nolint:wrapcheck // wrapped by connReader
 }
 
 func (n netConnAdapter) Write(b []byte) (int, error) {
-	nw, err := n.conn.Write(b)
-	if err != nil {
-		return nw, fmt.Errorf("writing to connection: %w", err)
-	}
-	return nw, nil
+	return n.conn.Write(b) //nolint:wrapcheck // wrapped by connWriter
 }
 
 func (n netConnAdapter) Close() error {
