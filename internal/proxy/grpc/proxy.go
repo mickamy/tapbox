@@ -22,6 +22,11 @@ type Proxy struct {
 	target    string
 	conn      *grpc.ClientConn
 	collector *trace.Collector
+
+	// OnSpan is called when a new gRPC span starts with the resolved
+	// traceID and spanID. This allows the SQL correlator to associate
+	// subsequent SQL queries with the active gRPC span.
+	OnSpan func(traceID, spanID string)
 }
 
 func NewProxy(target string, collector *trace.Collector) (*Proxy, error) {
@@ -56,6 +61,10 @@ func (p *Proxy) UnknownHandler() grpc.StreamHandler {
 
 		// Extract trace context from incoming metadata.
 		traceID, parentID, spanID := extractTraceContext(serverStream)
+
+		if p.OnSpan != nil {
+			p.OnSpan(traceID, spanID)
+		}
 
 		md, _ := metadata.FromIncomingContext(serverStream.Context())
 		ctx := metadata.NewOutgoingContext(serverStream.Context(), md.Copy())

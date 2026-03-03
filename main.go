@@ -88,6 +88,9 @@ func run() error {
 		if gpErr != nil {
 			return fmt.Errorf("grpc proxy: %w", gpErr)
 		}
+		gp.OnSpan = func(traceID, spanID string) {
+			correlator.SetActive(traceID, spanID)
+		}
 		grpcServer := grpc.NewServer(grpc.UnknownServiceHandler(gp.UnknownHandler()))
 
 		g.Go(func() error {

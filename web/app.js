@@ -159,17 +159,19 @@
             selectedSpanID = spans.length > 0 ? spans[0].span_id : null;
         }
 
-        const traceStart = new Date(trace.start).getTime();
+        const traceStart = parseTimeMs(trace.start);
         const traceDuration = trace.duration_ms || 1;
 
-        // Build span tree
+        // Build span tree and flatten to DFS order so that tree rows
+        // and timeline rows are rendered in the same order.
         const tree = buildTree(spans);
         const treeHTML = renderTree(tree, 0);
+        const orderedSpans = flattenTree(tree);
 
-        // Timeline
-        const timelineHTML = spans
+        // Timeline (uses orderedSpans to match tree row order)
+        const timelineHTML = orderedSpans
             .map((s) => {
-                const spanStart = new Date(s.start).getTime();
+                const spanStart = parseTimeMs(s.start);
                 const offset = ((spanStart - traceStart) / traceDuration) * 100;
                 const width = Math.max((s.duration_ms / traceDuration) * 100, 0.5);
                 const kindClass = `kind-${kindName(s.kind)}`;
@@ -256,6 +258,15 @@
             }
         }
         return roots;
+    }
+
+    function flattenTree(nodes) {
+        const result = [];
+        for (const n of nodes) {
+            result.push(n.span);
+            result.push(...flattenTree(n.children));
+        }
+        return result;
     }
 
     function renderTree(nodes, depth) {
@@ -404,6 +415,19 @@
 
     function escapeAttr(s) {
         return escapeHtml(s).replace(/'/g, "&#39;");
+    }
+
+    // Parse RFC3339Nano timestamp with sub-millisecond precision.
+    // JavaScript Date truncates to integer milliseconds, which causes
+    // up to 1ms error per timestamp. For short traces (2-5ms) this
+    // makes child span bars visually extend beyond their parent.
+    function parseTimeMs(iso) {
+        const d = new Date(iso);
+        const epochSec = Math.floor(d.getTime() / 1000);
+        const m = iso.match(/\.(\d+)/);
+        if (!m) return d.getTime();
+        const fracMs = parseInt(m[1].padEnd(9, "0").slice(0, 9), 10) / 1e6;
+        return epochSec * 1000 + fracMs;
     }
 
     // --- Init ---
