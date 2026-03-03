@@ -114,7 +114,8 @@ func (a *API) HandleExplain(w http.ResponseWriter, r *http.Request) {
 
 	plan, err := runExplain(r.Context(), a.explainDSN, query, req.Analyze)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, "explain failed: "+err.Error())
+		log.Printf("explain error: %v", err)
+		writeJSONError(w, http.StatusInternalServerError, "explain query failed")
 		return
 	}
 
