@@ -31,6 +31,7 @@
     }
 
     function updateTrace(trace) {
+        if (!trace || !trace.trace_id) return;
         const idx = traces.findIndex((t) => t.trace_id === trace.trace_id);
         if (idx >= 0) {
             traces[idx] = trace;
