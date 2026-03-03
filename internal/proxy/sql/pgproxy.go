@@ -209,6 +209,7 @@ func proxyClientToServer(client, server RawConn, connID uint64, pending chan<- p
 
 func proxyServerToClient(server, client RawConn, pending <-chan pendingQuery, onQuery func(QueryEvent)) error {
 	var rowCount int
+	var lastError string
 	for {
 		msgType, payload, err := readPGMessage(server)
 		if err != nil {
@@ -221,6 +222,8 @@ func proxyServerToClient(server, client RawConn, pending <-chan pendingQuery, on
 		switch msgType {
 		case 'D': // DataRow
 			rowCount++
+		case 'E': // ErrorResponse
+			lastError = extractErrorMessage(payload)
 		case 'Z': // ReadyForQuery — query cycle complete
 			select {
 			case pq, ok := <-pending:
@@ -231,14 +234,37 @@ func proxyServerToClient(server, client RawConn, pending <-chan pendingQuery, on
 						Duration: float64(time.Since(pq.start)) / float64(time.Millisecond),
 						ConnID:   pq.connID,
 						RowCount: rowCount,
+						Error:    lastError,
 					})
 				}
 			default:
 				// No pending query (e.g. initial ReadyForQuery after auth).
 			}
 			rowCount = 0
+			lastError = ""
 		}
 	}
+}
+
+// extractErrorMessage extracts the human-readable error message from a
+// PostgreSQL ErrorResponse payload. The payload consists of field-type (1 byte)
+// + null-terminated string pairs, terminated by a zero byte.
+// 'M' = Message, 'S' = Severity, 'C' = Code, etc.
+func extractErrorMessage(payload []byte) string {
+	i := 0
+	for i < len(payload) {
+		fieldType := payload[i]
+		i++
+		if fieldType == 0 {
+			break
+		}
+		value := extractString(payload[i:])
+		if fieldType == 'M' {
+			return value
+		}
+		i += len(value) + 1 // skip value + null terminator
+	}
+	return ""
 }
 
 // readPGMessage reads a single PostgreSQL protocol message from the server.
