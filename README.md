@@ -30,6 +30,22 @@ go install github.com/mickamy/tapbox@latest
 
 Requires Go 1.26+.
 
+### Docker (GitHub Releases)
+
+Download the binary from [GitHub Releases](https://github.com/mickamy/tapbox/releases) in your Dockerfile:
+
+```dockerfile
+FROM alpine:3 AS tapbox
+ARG TAPBOX_VERSION=0.0.1
+ARG TARGETARCH
+ADD "https://github.com/mickamy/tapbox/releases/download/v${TAPBOX_VERSION}/tapbox_${TAPBOX_VERSION}_linux_${TARGETARCH}.tar.gz" /tmp/tapbox.tar.gz
+RUN tar xzf /tmp/tapbox.tar.gz -C /usr/local/bin tapbox
+
+FROM alpine:3
+COPY --from=tapbox /usr/local/bin/tapbox /usr/local/bin/tapbox
+ENTRYPOINT ["tapbox"]
+```
+
 ### Build from source
 
 ```sh
@@ -65,6 +81,19 @@ All flags can also be set in a `.tapbox.yaml` file (auto-loaded from the current
 | `--max-traces`    | `1000`                      | Max traces to keep in memory                    |
 | `--explain-dsn`   | *(sql-target)*              | PostgreSQL DSN for EXPLAIN queries              |
 | `--config`        | `.tapbox.yaml` (if present) | Path to YAML config file                        |
+
+## Comparison
+
+|                       | tapbox                     | Jaeger / Zipkin               | OpenTelemetry Collector         | mitmproxy      |
+|-----------------------|----------------------------|-------------------------------|---------------------------------|----------------|
+| **Setup**             | Single binary, zero config | Backend + SDK instrumentation | Collector + SDK instrumentation | Single binary  |
+| **Code changes**      | None (reverse proxy)       | SDK integration required      | SDK integration required        | None (proxy)   |
+| **HTTP**              | Yes                        | Yes (via SDK)                 | Yes (via SDK)                   | Yes            |
+| **gRPC / Connect**    | Yes                        | Yes (via SDK)                 | Yes (via SDK)                   | Limited        |
+| **SQL capture**       | Yes (wire protocol)        | Yes (via SDK)                 | Yes (via SDK)                   | No             |
+| **Trace correlation** | Automatic                  | Manual (SDK)                  | Manual (SDK)                    | No             |
+| **EXPLAIN**           | Built-in                   | No                            | No                              | No             |
+| **Use case**          | Local dev                  | Production / staging          | Production / staging            | HTTP debugging |
 
 ## Architecture
 
